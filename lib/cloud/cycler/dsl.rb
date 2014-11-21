@@ -1,8 +1,6 @@
 require 'cloud/cycler'
 
 class Cloud::Cycler::DSL
-  require 'cloud/cycler/dsl/collection'
-  require 'cloud/cycler/dsl/taggedcollection'
   require 'cloud/cycler/dsl/schedule'
   require 'cloud/cycler/dsl/task'
 
