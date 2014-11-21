@@ -35,7 +35,7 @@ class Cloud::Cycler::DSL::Task
 
   def ec2_instances(*instance_ids)
     instance_ids.each do |instance_id|
-      @catalog[instance_id] = EC2Instance.new(instance_id)
+      @catalog[instance_id] = Cloud::Cycler::DSL::EC2Instance.new(instance_id)
     end
   end
 
@@ -44,7 +44,7 @@ class Cloud::Cycler::DSL::Task
       ec2 = AWS::EC2.new(:region => @region)
       ec2.instances.with_tag(tag, value).each do |instance|
         instance_id = instance.instance_id
-        @catalog[instance_id] = EC2Instance.new(instance_id)
+        @catalog[instance_id] = Cloud::Cycler::DSL::EC2Instance.new(instance_id)
       end
     end
   end
