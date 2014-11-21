@@ -24,7 +24,7 @@ class Cloud::Cycler::DSL
 
   def task(name, &block)
     task = Task.new(@logger, @region, name)
-    task.instance_eval(&block)
+    task.run(&block)
   end
 
   def without_tag(tag)

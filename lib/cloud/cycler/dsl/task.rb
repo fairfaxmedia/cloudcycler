@@ -1,5 +1,6 @@
 class Cloud::Cycler::DSL::Task
   require 'cloud/cycler/schedule'
+  require 'cloud/cycler/dsl/ec2instance'
 
   def initialize(log, region, name)
     @log        = log
@@ -7,16 +8,24 @@ class Cloud::Cycler::DSL::Task
     @name       = name
     @catalog    = {}
     @schedule   = nil
-    @ec2_action = nil
   end
 
   def run(&block)
     instance_eval(&block)
 
-    if @schedule.active?
-      debug { "Schedule #{schedule} - in hours"}
+    if @schedule.nil?
+      debug { "No schedule provided" }
+      return
+    elsif @schedule.active?
+      debug { "Schedule \"#{@schedule}\" - in hours"}
+      @catalog.each do |id, obj|
+        debug { "start #{id}" }
+      end
     else
-      debug { "Schedule #{schedule} - out of hours"}
+      debug { "Schedule \"#{@schedule}\" - out of hours"}
+      @catalog.each do |id, obj|
+        debug { "stop #{id}" }
+      end
     end
   end
 
@@ -26,19 +35,24 @@ class Cloud::Cycler::DSL::Task
 
   def ec2_instances(*instance_ids)
     instance_ids.each do |instance_id|
-      @catalog[instance_id] = :ec2_instance
+      @catalog[instance_id] = EC2Instance.new(instance_id)
     end
   end
 
   def ec2_instances_tagged(tags)
     tags.each do |tag, value|
-      @catalog["#{tag}:#{value}"] = :tag
+      ec2 = AWS::EC2.new(:region => @region)
+      ec2.instances.with_tag(tag, value).each do |instance|
+        instance_id = instance.instance_id
+        @catalog[instance_id] = EC2Instance.new(instance_id)
+      end
     end
   end
 
   def cloudformation_stack(*names)
-    cf = AWS::CloudFormation.new(:region => @region)
+    cfn = AWS::CloudFormation.new(:region => @region)
     names.each do |name|
+      cfn.stacks[name]
       @catalog[name] = :cfn_stack
     end
   end
