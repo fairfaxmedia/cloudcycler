@@ -1,0 +1,25 @@
+#!/usr/bin/env ruby
+
+require 'cloud/cycler/dsl'
+require 'trollop'
+
+opts = Trollop::options do
+  opt :region, 'Default region', :type => :string
+  opt :dir,    'Task directory (may be specified multiple times)', :type => :string, :multi => true
+end
+
+Cloud::Cycler.run(opts[:region]) do
+  log_to $stdout
+
+  opts[:dir].each do |dir|
+    Dir.entries(dir).each do |basename|
+      next if basename.start_with? '.'
+
+      if basename.end_with? '.task'
+        file_path = File.join(dir, basename)
+        file_contents = open(file_path) {|io| io.read }
+        instance_eval(file_contents, file_path)
+      end
+    end
+  end
+end

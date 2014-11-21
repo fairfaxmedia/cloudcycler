@@ -1,0 +1,2 @@
+module Cloud
+end
