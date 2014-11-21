@@ -1,6 +1,7 @@
 class Cloud::Cycler::DSL::Task
   require 'cloud/cycler/schedule'
   require 'cloud/cycler/dsl/ec2instance'
+  require 'cloud/cycler/dsl/cfnstack'
 
   def initialize(log, region, name)
     @log        = log
@@ -52,8 +53,7 @@ class Cloud::Cycler::DSL::Task
   def cloudformation_stack(*names)
     cfn = AWS::CloudFormation.new(:region => @region)
     names.each do |name|
-      cfn.stacks[name]
-      @catalog[name] = :cfn_stack
+      @catalog[name] = Cloud::Cycler::DSL::CFNStack.new(name)
     end
   end
 
