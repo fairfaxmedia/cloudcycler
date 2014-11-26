@@ -8,11 +8,6 @@ require 'aws-sdk'
 require 'logger'
 
 class Cloud::Cycler
+  Version = '2.0.0-beta'
   require 'cloud/cycler/errors'
-
-  # Shortcut to run a Cloud::Cycler::DSL application
-  def self.run(region, &block)
-    dsl = DSL.new(region)
-    dsl.run(&block)
-  end
 end

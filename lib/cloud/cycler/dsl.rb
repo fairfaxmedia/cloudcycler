@@ -50,3 +50,10 @@ class Cloud::Cycler::DSL
     @logger.error("task:#{name}") { "Task failed: #{e.message}" } 
   end
 end 
+
+class Cloud::Cycler
+  def self.run(region, &block)
+    dsl = DSL.new(region)
+    dsl.run(&block)
+  end
+end
