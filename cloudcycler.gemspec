@@ -2,11 +2,11 @@
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
-require 'cloud/cycler'
+require 'cloud/cycler/version'
 
 Gem::Specification.new do |spec|
   spec.name        = "cloudcycler"
-  spec.version     = Cloud::Cycler::Version
+  spec.version     = Cloud::Cycler::VERSION
   spec.platform    = Gem::Platform::RUBY
   spec.authors     = ["David Baggerman"]
   spec.email       = ["david.baggerman@fairfaxmedia.com.au"]
