@@ -1,8 +1,30 @@
+PATH
+  remote: .
+  specs:
+    cloudcycler (2.0.0beta)
+      aws-sdk (~> 1.58, < 2.0)
+      json (~> 1.7, < 2.0)
+      trollop
+
 GEM
   remote: https://rubygems.org/
   specs:
+    aws-sdk (1.59.0)
+      aws-sdk-v1 (= 1.59.0)
+    aws-sdk-v1 (1.59.0)
+      json (~> 1.4)
+      nokogiri (>= 1.4.4)
+    json (1.8.1)
+    mini_portile (0.6.1)
+    nokogiri (1.6.4.1)
+      mini_portile (~> 0.6.0)
+    rake (10.4.0)
+    trollop (2.0)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
+  bundler (~> 1.7)
+  cloudcycler!
+  rake (~> 10.0)
