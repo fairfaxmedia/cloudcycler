@@ -1,6 +1,10 @@
 require 'cloud/cycler'
 require 'time'
 
+# Represents a schedule when a resource should be on or off.
+#
+# Syntax example:
+# "MTWTF-- 0800-1800" will be on between 08:00 and 18:00 Monday to Friday.
 class Cloud::Cycler::Schedule
   def self.parse(str)
     str.match(/^([-M])([-T])([-W])([-T])([-F])([-S])([-S]) (\d{2})(\d{2})-(\d{2})(\d{2})$/) do |md|
@@ -31,6 +35,15 @@ class Cloud::Cycler::Schedule
     raise 'Invalid format'
   end
 
+  # * monday: boolean.
+  # * tuesday: boolean
+  # * wednesday: boolean
+  # * thursday: boolean
+  # * friday: boolean
+  # * start_hr: integer (0-23)
+  # * start_min: integer (0-59)
+  # * stop_hr: integer (0-23)
+  # * stop_min: integer (0-59)
   def initialize(monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_hr, start_min, stop_hr, stop_min)
     @days = [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
 
@@ -40,6 +53,7 @@ class Cloud::Cycler::Schedule
     @stop_min  = stop_min
   end
 
+  # Returns the string representation of the schedule.
   def to_s
     sched = ""
     sched << (@days[0] ? 'M' : '-')
@@ -52,6 +66,7 @@ class Cloud::Cycler::Schedule
     sprintf("#{sched} %02d%02d-%02d%02d", @start_hr, @start_min, @stop_hr, @stop_min)
   end
 
+  # Returns true if the current time is within the hours defined by the schedule
   def active?
     now = Time.now
     today = now.to_date
