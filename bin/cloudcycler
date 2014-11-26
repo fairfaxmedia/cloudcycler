@@ -32,6 +32,12 @@ Cloud::Cycler.run(opts[:region]) do
     default_bucket_prefix opts[:bucket_prefix]
   end
 
+  if opts[:bucket_region_given]
+    default_bucket_region opts[:bucket_region]
+  else
+    default_bucket_region opts[:region]
+  end
+
   unless opts[:no_dryrun]
     dryrun! # FIXME - safe default for development
   end

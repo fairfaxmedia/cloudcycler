@@ -9,6 +9,7 @@ class Cloud::Cycler::DSL
   attr_reader   :region # Default AWS region
   attr_reader   :bucket # Default S3 bucket
   attr_reader   :bucket_prefix # Prefix (folder) for s3 objects
+  attr_reader   :bucket_region # Region for S3 bucket
   attr_reader   :dryrun # Set to true if application is in dryrun mode
 
   # Initialize a new Cloud::Cycler::DSL application.
@@ -25,6 +26,10 @@ class Cloud::Cycler::DSL
 
   def default_bucket_prefix(prefix)
     @bucket_prefix = prefix
+  end
+
+  def default_bucket_region(region)
+    @bucket_region = region
   end
 
   # Sets the application to dryrun mode.
