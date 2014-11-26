@@ -25,4 +25,5 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency 'aws-sdk', '~> 1.58', '< 2.0'
   spec.add_runtime_dependency 'json', '~> 1.7', '< 2.0'
+  spec.add_runtime_dependency 'trollop'
 end
