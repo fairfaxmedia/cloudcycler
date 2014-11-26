@@ -8,6 +8,6 @@ require 'aws-sdk'
 require 'logger'
 
 class Cloud::Cycler
-  Version = '2.0.0-beta'
+  require 'cloud/cycler/version'
   require 'cloud/cycler/errors'
 end
