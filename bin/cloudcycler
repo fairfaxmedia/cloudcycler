@@ -7,6 +7,7 @@ opts = Trollop::options do
   opt :debug,  'Enable debugging'
   opt :region, 'Default AWS region', :type => :string
   opt :bucket, 'Default S3 bucket',  :type => :string
+  opt :bucket_prefix, 'Prefix (folder) for s3 objects', :type => :string
   opt :dir,    'Task directory (may be specified multiple times)', :type => :string, :multi => true
   opt :file,   'Task file (may be specified multiple times)', :type => :string, :multi => true
   opt :stdout, 'Log to stdout'
@@ -25,6 +26,16 @@ Cloud::Cycler.run(opts[:region]) do
 
   if opts[:bucket_given]
     default_bucket opts[:bucket]
+  end
+
+  if opts[:bucket_prefix_given]
+    default_bucket_prefix opts[:bucket_prefix]
+  end
+
+  if opts[:bucket_region_given]
+    default_bucket_region opts[:bucket_region]
+  else
+    default_bucket_region opts[:region]
   end
 
   unless opts[:no_dryrun]

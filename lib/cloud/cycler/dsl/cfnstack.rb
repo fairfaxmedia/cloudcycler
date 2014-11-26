@@ -111,28 +111,27 @@ class Cloud::Cycler::DSL::CFNStack
   # Save template and parameters to an S3 bucket
   # Bucket may be created if it doesn't exist
   def save_to_s3(bucket_name)
+    unless s3_bucket.exists?
+      raise Cloud::Cycler::TaskFailure.new("Cannot save #{@name} to non-existant bucket #{bucket.name}")
+    end
+
     template = cf_stack.template
     params   = cf_stack.parameters
 
-    s3 = AWS::S3.new(:region => @task.region)
-    bucket = s3.buckets[bucket_name]
     @task.unsafe("Writing #{@name} to bucket #{bucket.name}") do
-      bucket.objects["cloudformation/#{@name}/template.json"].write(template)
-      bucket.objects["cloudformation/#{@name}/parameters.json"].write(params.to_json)
+      s3_object("#{@name}/template.json").write(template)
+      s3_object("#{@name}/parameters.json").write(params.to_json)
     end
   end
 
   # Load template and parameters that were previously saved to an S3 bucket
   def load_from_s3(bucket)
-    s3 = AWS::S3.new(:region => @task.region)
-    bucket = s3.buckets[bucket]
-
-    unless bucket.exists?
+    unless s3_bucket.exists?
       raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{bucket.name}")
     end
 
-    template = bucket.objects["cloudformation/#{@name}/template.json"].read
-    params   = bucket.objects["cloudformation/#{@name}/parameters.json"].read
+    template = s3_object("#{@name}/template.json").read
+    params   = s3_object("#{@name}/parameters.json").read
     return template, JSON.parse(params_json)
   end
 
@@ -145,9 +144,8 @@ class Cloud::Cycler::DSL::CFNStack
       raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{bucket.name}")
     end
 
-    template = bucket.objects["cloudformation/#{@name}/template.json"]
-    params   = bucket.objects["cloudformation/#{@name}/parameters.json"].read
-
+    template = s3_object("#{@name}/template.json")
+    params   = s3_object("#{@name}/parameters.json").read
     cf_stacks.create(@name, template, :parameters => JSON.parse(params))
   end
 
@@ -171,5 +169,18 @@ class Cloud::Cycler::DSL::CFNStack
 
     s3 = AWS::S3.new(:region => @task.region)
     @s3_bucket = s3.buckets[@task.bucket]
+  end
+
+  def s3_object(path)
+    real_path = nil
+    if @task.prefix.nil? || @task.prefix.empty?
+      real_path = "cloudformation/#{path}"
+    elsif @task.prefix.end_with? '/'
+      real_path = @task.prefix + "cloudformation/#{path}"
+    else
+      real_path = "#{@task.prefix}/cloudformation/#{path}"
+    end
+
+    s3_bucket.objects[real_path]
   end
 end

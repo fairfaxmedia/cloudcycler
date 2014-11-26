@@ -5,20 +5,22 @@ class Cloud::Cycler::DSL::Task
   require 'cloud/cycler/dsl/ec2instance'
   require 'cloud/cycler/dsl/cfnstack'
 
-  attr_reader :region # Default AWS region
-  attr_reader :bucket # Default S3 bucket
+  attr_reader :region        # Default AWS region
+  attr_reader :bucket        # Default S3 bucket
+  attr_reader :bucket_prefix # Default S3 bucket
 
   # Create a new task with a reference to a Cloud::Cycler::DSL application and
   # a task name.
   def initialize(dsl, name)
-    @dsl        = dsl
-    @region     = dsl.region
-    @bucket     = dsl.bucket
-    @name       = name
-    @catalog    = {}
-    @blacklist  = Hash.new {|h,k| h[k] = [] }
-    @schedule   = nil
-    @cf_action  = :default
+    @dsl           = dsl
+    @region        = dsl.region
+    @bucket        = dsl.bucket
+    @bucket_prefix = dsl.bucket_prefix
+    @name          = name
+    @catalog       = {}
+    @blacklist     = Hash.new {|h,k| h[k] = [] }
+    @schedule      = nil
+    @cf_action     = :default
   end
 
   # Convenience method. Defers to the logger of the parent Cloud::Cycler::DSL.
@@ -55,6 +57,10 @@ class Cloud::Cycler::DSL::Task
   # Overwrite the default S3 bucket provided by the parent application
   def use_bucket(bucket)
     @bucket = bucket
+  end
+
+  def use_bucket_prefix(prefix)
+    @bucket_prefix = prefix
   end
 
   # Provide a list of EC2 instances by instance id to be cycled.
@@ -165,8 +171,19 @@ class Cloud::Cycler::DSL::Task
     end
     s3 = AWS::S3.new(:region => @region)
     bucket = s3.buckets[@bucket]
-    bucket.objects.with_prefix('cloudformation').each do |object|
-      @stack_cache.push(object.key.split('/')[1])
+
+    cf_prefix = nil
+    if @bucket_prefix.nil? || @bucket_prefix.empty?
+      cf_prefix = 'cloudformation'
+    elsif @bucket_prefix.end_with? '/'
+      cf_prefix = @bucket_prefix + 'cloudformation'
+    else
+      cf_prefix = "#{@bucket_prefix}/cloudformation"
+    end
+
+    bucket.objects.with_prefix(cf_prefix).each do |object|
+      folders = object.key.split('/').drop_while {|folder| folder != 'cloudformation' }
+      @stack_cache.push(folders[1])
     end
     @stack_cache = @stack_cache.sort.uniq
   end
