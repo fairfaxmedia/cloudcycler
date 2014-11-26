@@ -1,11 +1,14 @@
 require 'rake/clean'
 
-VERSION = '2.0.0'
+lib = File.expand_path('../lib', __FILE__)
+$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
-file "cloudcycler-#{VERSION}.gem" do
+require 'cloud/cycler/version'
+
+file "cloudcycler-#{Cloud::Cycler::VERSION}.gem" do
   sh "gem build cloudcycler.gemspec"
 end
-CLEAN << "cloudcycler-#{VERSION}.gem"
+CLEAN << "cloudcycler-*.gem"
 
 task :build do
   sh "gem build cloudcycler.gemspec"
@@ -15,7 +18,7 @@ task :rdoc do
   sh 'rdoc lib bin'
 end
 
-task :default => "cloudcycler-#{VERSION}.gem"
-task :install => "cloudcycler-#{VERSION}.gem" do
-  sh "gem install ./cloudcycler-#{VERSION}.gem"
+task :default => "cloudcycler-#{Cloud::Cycler::VERSION}.gem"
+task :install => "cloudcycler-#{Cloud::Cycler::VERSION}.gem" do
+  sh "gem install ./cloudcycler-#{Cloud::Cycler::VERSION}.gem"
 end
