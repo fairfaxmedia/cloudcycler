@@ -1,5 +1,7 @@
-require 'cloud/cycler'
+require 'cloud/cycler/errors'
 require 'time'
+
+Cloud::Cycler::InvalidSchedule = Class.new(Cloud::Cycler::Error)
 
 # Represents a schedule when a resource should be on or off.
 #
@@ -32,7 +34,7 @@ class Cloud::Cycler::Schedule
       schedule = new(monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_hr, start_min, stop_hr, stop_min)
       return schedule
     end
-    raise 'Invalid format'
+    raise Cloud::Cycler::InvalidSchedule.new(str)
   end
 
   # * monday: boolean.
