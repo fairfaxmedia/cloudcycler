@@ -1,4 +1,5 @@
 require 'rake/clean'
+require 'rake/testtask'
 
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
@@ -16,6 +17,11 @@ end
 
 task :rdoc do
   sh 'rdoc lib bin'
+end
+
+Rake::TestTask.new do |t|
+  t.libs += ['lib', 'test']
+  t.test_files = FileList['test/**/test_*.rb']
 end
 
 task :default => "cloudcycler-#{Cloud::Cycler::VERSION}.gem"
