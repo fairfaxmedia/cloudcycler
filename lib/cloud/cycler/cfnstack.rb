@@ -2,14 +2,14 @@ require 'json'
 
 # Wrapper around AWS::CloudFormation. Provides a public interface compatible
 # with Cloud::Cycler::DSL::EC2Interface.
-class Cloud::Cycler::DSL::CFNStack
+class Cloud::Cycler::CFNStack
   def initialize(task, name)
     @task   = task
     @name   = name
   end
 
-  def start
-    case @task.get_cf_action
+  def start(action)
+    case action
     when :default, :stop
       delete
     when :zero_autoscale
@@ -19,8 +19,8 @@ class Cloud::Cycler::DSL::CFNStack
     end
   end
 
-  def stop
-    case @task.get_cf_action
+  def stop(action)
+    case action
     when :default, :stop
       delete
     when :zero_autoscale

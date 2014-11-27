@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'cloud/cycler/dsl'
+require 'cloud/cycler/task'
 require 'trollop'
 
 opts = Trollop::options do

@@ -1,5 +1,5 @@
 # Wrapper around AWS::EC2. 
-class Cloud::Cycler::DSL::EC2Instance
+class Cloud::Cycler::EC2Instance
   def initialize(task, instance_id)
     @task        = task
     @instance_id = instance_id
