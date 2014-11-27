@@ -20,7 +20,7 @@ task :rdoc do
 end
 
 Rake::TestTask.new do |t|
-  t.libs += ['lib', 'test']
+  t.libs << 'test'
   t.test_files = FileList['test/**/test_*.rb']
 end
 
