@@ -9,6 +9,20 @@ class TestSchedule < Minitest::Unit::TestCase
     reference_date = "1900-01-#{idx+1}" # 1900-01-01 happens to be a Monday
     ch = day.to_s.chars.first.upcase
 
+
+    define_method("test_string_#{day}_roundtrip") do
+      Time.stub :now, Time.parse("#{reference_date} 12:00") do
+        sched = Cloud::Cycler::Schedule.parse(active_string)
+        assert_equal sched.to_s, active_string
+
+        test_string = inactive_string.dup
+        test_string[idx] = ch
+
+        sched = Cloud::Cycler::Schedule.parse(test_string)
+        assert_equal sched.to_s, test_string
+      end
+    end
+
     define_method("test_parsing_#{day}_on_days") do
       Time.stub :now, Time.parse("#{reference_date} 12:00") do
         sched = Cloud::Cycler::Schedule.parse(active_string)

@@ -43,20 +43,27 @@ class Cloud::Cycler::Task
   end
 
   def excluded?(type, id)
-    @excludes[type].any? {|ex| ex === instance_id }
+    @excludes[type].any? {|ex| ex === id }
   end
 
   def include(type, id)
-    return if excluded?(type, id)
     case type
     when :cfn
-      stack_cache.each do |stack_name|
+      cfn_cache.each do |stack_name|
+        next if excluded?(type, stack_name)
         if id === stack_name
           @includes[type].push(stack_name)
         end
       end
+    when :ec2
+      ec2_cache.each do |instance_name, instance_id|
+        next if excluded?(type, instance_name)
+        if id === instance_name
+          @includes[type].push(instance_name)
+        end
+      end
     else
-      @includes[type].push(id)
+      @includes[type].push(id) unless excluded?(type, id)
     end
   end
 
@@ -118,15 +125,38 @@ class Cloud::Cycler::Task
     end
   end
 
+  def cache(type)
+    case type
+    when :cfn
+      cfn_cache
+    when :ec2
+      ec2_cache
+    when :rds
+      rds_cache
+    end
+  end
+
   private
 
-  def stack_cache
-    return @stack_cache if defined? @stack_cache
+  def ec2_cache
+    return @ec2_cache if defined? @ec2_cache
 
-    @stack_cache = []
+    @ec2_cache = {}
+    ec2 = AWS::CloudFormation.new(:region => @region)
+    ec2.instances.each do |instance|
+      @ec2_cache[instance.name] = instance.id
+    end
+
+    @ec2_cache
+  end
+
+  def cfn_cache
+    return @cfn_cache if defined? @cfn_cache
+
+    @cfn_cache = []
     cf = AWS::CloudFormation.new(:region => @region)
     cf.stacks.each do |stack|
-      @stack_cache.push stack.name
+      @cfn_cache.push stack.name
     end
     s3 = AWS::S3.new(:region => @region)
     bucket = s3.buckets[@bucket]
@@ -142,8 +172,8 @@ class Cloud::Cycler::Task
 
     bucket.objects.with_prefix(cf_prefix).each do |object|
       folders = object.key.split('/').drop_while {|folder| folder != 'cloudformation' }
-      @stack_cache.push(folders[1])
+      @cfn_cache.push(folders[1])
     end
-    @stack_cache = @stack_cache.sort.uniq
+    @cfn_cache = @cfn_cache.sort.uniq
   end
 end
