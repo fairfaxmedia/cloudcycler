@@ -3,6 +3,8 @@ require 'json'
 # Wrapper around AWS::CloudFormation. Provides a public interface compatible
 # with Cloud::Cycler::DSL::EC2Interface.
 class Cloud::Cycler::CFNStack
+  attr_accessor :rds_snapshot_parameter
+
   def initialize(task, name)
     @task   = task
     @name   = name
@@ -10,8 +12,8 @@ class Cloud::Cycler::CFNStack
 
   def start(action)
     case action
-    when :default, :stop
-      delete
+    when :default, :start
+      rebuild
     when :zero_autoscale
       unzero_autoscale
     else
@@ -31,21 +33,37 @@ class Cloud::Cycler::CFNStack
   end
 
   # (Re)start a stack from saved template + parameters
-  def delete
+  def rebuild
     if cf_stack.exists?
       @task.debug { "Stack #{@name} already running (noop)"}
     else
       @task.unsafe("Building stack #{@name}") do
-        restore_from_s3(@task.bucket)
-        # template, params = load_from_s3(@task.bucket)
-        # cf_stacks.create(@name, template, :parameters => params)
+        template, params, resources = load_from_s3(@task.bucket)
+
+        if @rds_snapshot_parameter
+          db_instances = resources['DBInstance']
+          if db_instances.size > 1
+            raise Cloud::Cycler::TaskFailure.new("Cannot use rds_snapshot_parameter with multiple DBInstances")
+          end
+
+          if db_instances.size == 1
+            db_instance_id  = db_instances.first
+
+            snapshot_id = latest_rds_snapshot_of(db_instance_id)
+            unless snapshot_id.nil?
+              params[@rds_snapshot_parameter] = snapshot_id
+            end
+          end
+        end
+
+        cf_stacks.create(@name, template, :parameters => params)
       end
     end
   end
 
   # Stopping a CloudFormation stack involves saving the template and
   # parameters, then deleting the stack.
-  def rebuild
+  def delete
     if cf_stack.exists?
       @task.unsafe("Tearing down stack #{@name}") do
         save_to_s3(@task.bucket)
@@ -115,12 +133,14 @@ class Cloud::Cycler::CFNStack
       raise Cloud::Cycler::TaskFailure.new("Cannot save #{@name} to non-existant bucket #{bucket.name}")
     end
 
-    template = cf_stack.template
-    params   = cf_stack.parameters
+    template  = cf_stack.template
+    params    = cf_stack.parameters
+    resources = cf_resources
 
     @task.unsafe("Writing #{@name} to bucket #{bucket.name}") do
       s3_object("#{@name}/template.json").write(template)
       s3_object("#{@name}/parameters.json").write(params.to_json)
+      s3_object("#{@name}/resources.json").write(resources.to_json)
     end
   end
 
@@ -130,9 +150,10 @@ class Cloud::Cycler::CFNStack
       raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{bucket.name}")
     end
 
-    template = s3_object("#{@name}/template.json").read
-    params   = s3_object("#{@name}/parameters.json").read
-    return template, JSON.parse(params_json)
+    template  = s3_object("#{@name}/template.json")
+    params    = s3_object("#{@name}/parameters.json").read
+    resources = s3_object("#{@name}/resources.json").read
+    return template, JSON.parse(params), JSON.parse(resources)
   end
 
   # Recreate the stack, supplying the S3 URL to the API. This overcomes
@@ -144,12 +165,26 @@ class Cloud::Cycler::CFNStack
       raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{bucket.name}")
     end
 
-    template = s3_object("#{@name}/template.json")
-    params   = s3_object("#{@name}/parameters.json").read
+    template  = s3_object("#{@name}/template.json")
+    params    = s3_object("#{@name}/parameters.json").read
+    resources = s3_object("#{@name}/resources.json").read
     cf_stacks.create(@name, template, :parameters => JSON.parse(params))
   end
 
   private
+
+  def latest_rds_snapshot_of(db_instance_id)
+    rds = AWS::RDS.new(:region => @task.region)
+    candidate = nil
+    rds.snapshots.each do |snap|
+      next unless snap.snap.db_instance_id == db_instance_id
+
+      if candidate.nil? || candidate.created_at < snap.created_at
+        candidate = snap
+      end
+    end
+    candidate.nil? ? nil : candidate.id
+  end
 
   # Memoization for the AWS::CloudFormation::Stack object
   def cf_stack
@@ -162,6 +197,15 @@ class Cloud::Cycler::CFNStack
 
     cf = AWS::CloudFormation.new(:region => @task.region)
     @cf_stacks = cf.stacks
+  end
+
+  def cf_resources
+    return @cf_resources if defined? @cf_resources
+    @cf_resources = Hash.new {|h,k| h[k] = [] }
+    cf_stack.resources.each do |res|
+      @cf_resources[res.logical_resource_id].push(res.physical_resource_id)
+    end
+    @cf_resources
   end
 
   def s3_bucket
