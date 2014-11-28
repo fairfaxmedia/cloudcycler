@@ -1,3 +1,5 @@
+require 'cloud/cycler/namespace'
+
 # Wrapper around AWS::EC2. 
 class Cloud::Cycler::EC2Instance
   def initialize(task, instance_id)
@@ -6,18 +8,15 @@ class Cloud::Cycler::EC2Instance
   end
 
   def stop
-    ec2 = AWS::EC2.new(:region => @task.region)
-    instance = ec2.instances[@instance_id]
-
-    unless instance.exists?
+    unless ec2_instance.exists?
       raise Cloud::Cycler::TaskFailure.new("EC2 instance '#{@instance_id}' does not exist")
     end
 
-    if instance.status == :running
+    if ec2_instance.status == :running
       @task.unsafe("Stopping instance #{@instance_id}") do
-        instance.stop
+        ec2_instance.stop
       end
-    elsif instance.status == :stopped
+    elsif ec2_instance.status == :stopped
       @task.debug { "Instance #{@instance_id} already stopped" }
     else
       @task.debug { "Cannot stop #{@instance_id} - instance is not running (status: #{instance.status})" }
@@ -29,21 +28,18 @@ class Cloud::Cycler::EC2Instance
   end
 
   def start
-    ec2 = AWS::EC2.new(:region => @task.region)
-    instance = ec2.instances[@instance_id]
-
-    unless instance.exists?
+    unless ec2_instance.exists?
       raise Cloud::Cycler::TaskFailure.new("EC2 instance '#{@instance_id}' does not exist")
     end
 
-    if instance.status == :stopped
+    if ec2_instance.status == :stopped
       @task.unsafe("Stopping instance #{@instance_id}") do
-        instance.start
+        ec2_instance.start
       end
-    elsif instance.status == :running
+    elsif ec2_instance.status == :running
       @task.debug { "Instance #{@instance_id} already running" }
     else
-      @task.debug { "Cannot start #{@instance_id} - instance is not stopped (status: #{instance.status})" }
+      @task.debug { "Cannot start #{@instance_id} - instance is not stopped (status: #{ec2_instance.status})" }
     end
   end
 
