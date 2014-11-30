@@ -13,7 +13,7 @@ Gem::Specification.new do |spec|
   spec.homepage    = "https://github.com/fairfaxmedia/cloudcycler"
   spec.summary     = %q{A utility to stop/start instances in EC2}
   spec.description = %q{Run this script via cron to start or stop a list of EC2 instances, or instances defined by tags.}
-  spec.licenseu    = ['Apache License, Version 2.0']
+  spec.license     = ['Apache License, Version 2.0']
 
   spec.files         = `git ls-files`.split("\n")
   spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
