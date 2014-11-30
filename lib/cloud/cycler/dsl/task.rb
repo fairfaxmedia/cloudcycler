@@ -64,6 +64,10 @@ class Cloud::Cycler::DSL::Task
     end
   end
 
+  def cfn_rds_snapshot_parameter(parameter)
+    @task.rds_snapshot_parameter = parameter
+  end
+
   # Defines the schedule for the task.
   def schedule(spec)
     @task.schedule = Cloud::Cycler::Schedule.parse(spec)

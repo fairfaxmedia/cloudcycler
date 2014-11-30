@@ -19,6 +19,7 @@ class Cloud::Cycler::Task
   attr_accessor :cfn_action
   attr_accessor :ec2_action
   attr_accessor :actions
+  attr_accessor :rds_snapshot_parameter
 
   def initialize(cycler, name)
     @name          = name

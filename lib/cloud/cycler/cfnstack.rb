@@ -3,8 +3,6 @@ require 'json'
 # Wrapper around AWS::CloudFormation. Provides a public interface compatible
 # with Cloud::Cycler::DSL::EC2Interface.
 class Cloud::Cycler::CFNStack
-  attr_accessor :rds_snapshot_parameter
-
   def initialize(task, name)
     @task   = task
     @name   = name
@@ -37,25 +35,26 @@ class Cloud::Cycler::CFNStack
     if cf_stack.exists?
       @task.debug { "Stack #{@name} already running (noop)"}
     else
-      @task.unsafe("Building stack #{@name}") do
-        template, params, resources = load_from_s3(@task.bucket)
+      template, params, resources = load_from_s3(@task.bucket)
 
-        if @rds_snapshot_parameter
-          db_instances = resources['DBInstance']
-          if db_instances.size > 1
-            raise Cloud::Cycler::TaskFailure.new("Cannot use rds_snapshot_parameter with multiple DBInstances")
-          end
-
-          if db_instances.size == 1
-            db_instance_id  = db_instances.first
-
-            snapshot_id = latest_rds_snapshot_of(db_instance_id)
-            unless snapshot_id.nil?
-              params[@rds_snapshot_parameter] = snapshot_id
-            end
-          end
+      db_instances = resources['DBInstance']
+      if !db_instances.nil? && @task.rds_snapshot_parameter
+        if db_instances.size > 1
+          raise Cloud::Cycler::TaskFailure.new("Cannot use rds_snapshot_parameter with multiple DBInstances")
         end
 
+        if db_instances.size == 1
+          db_instance_id  = db_instances.first
+
+          snapshot_id = latest_rds_snapshot_of(db_instance_id)
+          unless snapshot_id.nil?
+            @task.debug { "Setting parameter #{@task.rds_snapshot_parameter} to #{snapshot_id}" }
+            params[@task.rds_snapshot_parameter] = snapshot_id
+          end
+        end
+      end
+
+      @task.unsafe("Building stack #{@name}") do
         cf_stacks.create(@name, template, :parameters => params)
       end
     end
@@ -130,14 +129,14 @@ class Cloud::Cycler::CFNStack
   # Bucket may be created if it doesn't exist
   def save_to_s3(bucket_name)
     unless s3_bucket.exists?
-      raise Cloud::Cycler::TaskFailure.new("Cannot save #{@name} to non-existant bucket #{bucket.name}")
+      raise Cloud::Cycler::TaskFailure.new("Cannot save #{@name} to non-existant bucket #{s3_bucket.name}")
     end
 
     template  = cf_stack.template
     params    = cf_stack.parameters
     resources = cf_resources
 
-    @task.unsafe("Writing #{@name} to bucket #{bucket.name}") do
+    @task.unsafe("Writing #{@name} to bucket #{s3_bucket.name}") do
       s3_object("#{@name}/template.json").write(template)
       s3_object("#{@name}/parameters.json").write(params.to_json)
       s3_object("#{@name}/resources.json").write(resources.to_json)
@@ -147,7 +146,7 @@ class Cloud::Cycler::CFNStack
   # Load template and parameters that were previously saved to an S3 bucket
   def load_from_s3(bucket)
     unless s3_bucket.exists?
-      raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{bucket.name}")
+      raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{s3_bucket.name}")
     end
 
     template  = s3_object("#{@name}/template.json")
@@ -162,7 +161,7 @@ class Cloud::Cycler::CFNStack
     bucket = s3_bucket
 
     unless bucket.exists?
-      raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{bucket.name}")
+      raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{s3_bucket.name}")
     end
 
     template  = s3_object("#{@name}/template.json")
@@ -217,12 +216,12 @@ class Cloud::Cycler::CFNStack
 
   def s3_object(path)
     real_path = nil
-    if @task.prefix.nil? || @task.prefix.empty?
+    if @task.bucket_prefix.nil? || @task.bucket_prefix.empty?
       real_path = "cloudformation/#{path}"
-    elsif @task.prefix.end_with? '/'
-      real_path = @task.prefix + "cloudformation/#{path}"
+    elsif @task.bucket_prefix.end_with? '/'
+      real_path = @task.bucket_prefix + "cloudformation/#{path}"
     else
-      real_path = "#{@task.prefix}/cloudformation/#{path}"
+      real_path = "#{@task.bucket_prefix}/cloudformation/#{path}"
     end
 
     s3_bucket.objects[real_path]
