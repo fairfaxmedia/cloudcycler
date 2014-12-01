@@ -39,11 +39,12 @@ opts = Trollop::options do
 end
 
 config = {}
-Cloud::Cycler.run(opts[:region]) do
-  if opts[:config_given]
-    config = YAML.load_file opts[:config]
-  end
+if opts[:config_given]
+  config = YAML.load_file opts[:config]
+end
 
+region = opts[:region] || config['region']
+Cloud::Cycler.run(region) do
   log_file = opts[:log] || config['log-file']
   if opts[:stdout]
     log_to $stdout
