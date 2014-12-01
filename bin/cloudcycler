@@ -3,59 +3,106 @@
 require 'cloud/cycler/dsl'
 require 'cloud/cycler/task'
 require 'trollop'
+require 'yaml'
 
 opts = Trollop::options do
-  opt :debug,  'Enable debugging'
-  opt :region, 'Default AWS region', :type => :string
-  opt :bucket, 'Default S3 bucket',  :type => :string
-  opt :bucket_prefix, 'Prefix (folder) for s3 objects', :type => :string
-  opt :dir,    'Task directory (may be specified multiple times)', :type => :string, :multi => true
-  opt :file,   'Task file (may be specified multiple times)', :type => :string, :multi => true
+  opt :debug, 'Enable debugging'
+
+  opt :config, 'Config file',
+    :type  => :string
+
+  opt :region, 'Default AWS region',
+    :type  => :string
+
+  opt :bucket, 'Default S3 bucket',
+    :type  => :string
+
+  opt :bucket_prefix, 'Prefix (folder) for s3 objects',
+    :type  => :string
+
+  opt :dir, 'Task directory (may be specified multiple times)',
+    :type  => :string, 
+    :multi => true
+
+  opt :file, 'Task file (may be specified multiple times)',
+    :type  => :string,
+    :multi => true
+
   opt :stdout, 'Log to stdout'
-  opt :log,    'File to log to', :type => :string
-  opt :no_dryrun
+
+  opt :log, 'File to log to',
+    :type  => :string
+
+  opt :dryrun, 'Don\'t make live changes'
 
   conflicts :stdout, :log
 end
 
+config = {}
 Cloud::Cycler.run(opts[:region]) do
+  if opts[:config_given]
+    config = YAML.load_file opts[:config]
+  end
+
+  log_file = opts[:log] || config['log-file']
   if opts[:stdout]
     log_to $stdout
-  elsif opts[:log_given]
-    log_to opts[:log]
+  elsif log_file
+    log_to log_file
   end
 
-  if opts[:bucket_given]
-    default_bucket opts[:bucket]
+  bucket_name = opts[:bucket] || config['bucket-name']
+  if bucket_name
+    default_bucket bucket_name
   end
 
-  if opts[:bucket_prefix_given]
+  bucket_prefix = opts[:bucket_prefix] || config['bucket-prefix']
+  if bucket_prefix
     default_bucket_prefix opts[:bucket_prefix]
   end
 
-  if opts[:bucket_region_given]
+  bucket_region = opts[:bucket_region] || config['bucket-region']
+  if bucket_region
     default_bucket_region opts[:bucket_region]
+  end
+
+  if opts[:dryrun]
+    dryrun!
+  end
+
+  if opts[:file_given] || opts[:dir_given]
+    opts[:file].each do |file_path|
+      file_contents = open(file_path) {|io| io.read }
+      instance_eval(file_contents, file_path)
+    end
+
+    opts[:dir].each do |dir|
+      Dir.entries(dir).each do |basename|
+        next if basename.start_with? '.'
+
+        if basename.end_with? '.task'
+          file_path = File.join(dir, basename)
+          file_contents = open(file_path) {|io| io.read }
+          instance_eval(file_contents, file_path)
+        end
+      end
+    end
   else
-    default_bucket_region opts[:region]
-  end
+    if config['task-file']
+      file_path = config['task-file']
+      file_contents = open(file_path) {|io| io.read }
+      instance_eval(file_contents, file_path)
+    end
 
-  unless opts[:no_dryrun]
-    dryrun! # FIXME - safe default for development
-  end
+    if config['task-dir']
+      Dir.entries(config['task-dir']).each do |basename|
+        next if basename.start_with? '.'
 
-  opts[:file].each do |file_path|
-    file_contents = open(file_path) {|io| io.read } 
-    instance_eval(file_contents, file_path)
-  end
-
-  opts[:dir].each do |dir|
-    Dir.entries(dir).each do |basename|
-      next if basename.start_with? '.'
-
-      if basename.end_with? '.task'
-        file_path = File.join(dir, basename)
-        file_contents = open(file_path) {|io| io.read }
-        instance_eval(file_contents, file_path)
+        if basename.end_with? '.task'
+          file_path = File.join(config['task-dir'], basename)
+          file_contents = open(file_path) {|io| io.read }
+          instance_eval(file_contents, file_path)
+        end
       end
     end
   end
