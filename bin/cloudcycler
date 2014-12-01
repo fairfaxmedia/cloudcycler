@@ -15,7 +15,7 @@ opts = Trollop::options do
   opt :file,   'Task file (may be specified multiple times)', :type => :string, :multi => true
   opt :stdout, 'Log to stdout'
   opt :log,    'File to log to', :type => :string
-  opt :no_dryrun
+  opt :dryrun, 'Don\'t make live changes'
 
   conflicts :stdout, :log
 end
@@ -48,8 +48,8 @@ Cloud::Cycler.run(opts[:region]) do
     default_bucket_region opts[:bucket_region]
   end
 
-  unless opts[:no_dryrun]
-    dryrun! # FIXME - safe default for development
+  if opts[:dryrun]
+    dryrun!
   end
 
   if opts[:file_given] || opts[:dir_given]
