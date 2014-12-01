@@ -59,12 +59,12 @@ Cloud::Cycler.run(region) do
 
   bucket_prefix = opts[:bucket_prefix] || config['bucket-prefix']
   if bucket_prefix
-    default_bucket_prefix opts[:bucket_prefix]
+    default_bucket_prefix bucket_prefix
   end
 
   bucket_region = opts[:bucket_region] || config['bucket-region']
   if bucket_region
-    default_bucket_region opts[:bucket_region]
+    default_bucket_region bucket_region
   end
 
   if opts[:dryrun]
