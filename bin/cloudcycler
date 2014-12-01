@@ -39,11 +39,12 @@ opts = Trollop::options do
 end
 
 config = {}
-Cloud::Cycler.run(opts[:region]) do
-  if opts[:config_given]
-    config = YAML.load_file opts[:config]
-  end
+if opts[:config_given]
+  config = YAML.load_file opts[:config]
+end
 
+region = opts[:region] || config['region']
+Cloud::Cycler.run(region) do
   log_file = opts[:log] || config['log-file']
   if opts[:stdout]
     log_to $stdout
@@ -58,12 +59,12 @@ Cloud::Cycler.run(opts[:region]) do
 
   bucket_prefix = opts[:bucket_prefix] || config['bucket-prefix']
   if bucket_prefix
-    default_bucket_prefix opts[:bucket_prefix]
+    default_bucket_prefix bucket_prefix
   end
 
   bucket_region = opts[:bucket_region] || config['bucket-region']
   if bucket_region
-    default_bucket_region opts[:bucket_region]
+    default_bucket_region bucket_region
   end
 
   if opts[:dryrun]
