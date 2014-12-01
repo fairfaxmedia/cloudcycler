@@ -38,7 +38,7 @@ class Cloud::Cycler::CFNStack
     else
       template, params, resources = load_from_s3(@task.bucket)
 
-      db_instances = resources['AWS::RDS::DBInstance']
+      db_instances = rds_instances_from(resources)
       if !db_instances.nil? && @task.rds_snapshot_parameter
         if db_instances.size > 1
           raise Cloud::Cycler::TaskFailure.new("Cannot use rds_snapshot_parameter with multiple DBInstances")
@@ -224,6 +224,14 @@ class Cloud::Cycler::CFNStack
     end
 
     resources
+  end
+
+  def rds_instances_from(resources)
+    instances = resources['AWS::RDS::DBInstance'] || []
+    resources['AWS::CloudFormation::Stack'].each do |substack, substack_resources|
+      instances += rds_instances_from(resources)
+    end
+    instances
   end
 
   def s3_bucket
