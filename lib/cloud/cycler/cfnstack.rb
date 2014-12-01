@@ -1,4 +1,5 @@
 require 'json'
+require 'cloud/cycler/namespace'
 
 # Wrapper around AWS::CloudFormation. Provides a public interface compatible
 # with Cloud::Cycler::DSL::EC2Interface.
@@ -37,7 +38,7 @@ class Cloud::Cycler::CFNStack
     else
       template, params, resources = load_from_s3(@task.bucket)
 
-      db_instances = resources['DBInstance']
+      db_instances = resources['AWS::RDS::DBInstance']
       if !db_instances.nil? && @task.rds_snapshot_parameter
         if db_instances.size > 1
           raise Cloud::Cycler::TaskFailure.new("Cannot use rds_snapshot_parameter with multiple DBInstances")
@@ -78,7 +79,7 @@ class Cloud::Cycler::CFNStack
   def zero_autoscale
     autoscale = AWS::AutoScaling.new(:region => @task.region)
     cf_stack.resources.each do |resource|
-      next unless resource.logical_resource_id == 'ScalingGroup'
+      next unless resource.resource_type == 'AWS::AutoScaling::AutoScalingGroup'
 
       scale_group = autoscale.groups[resource.physical_resource_id]
       if scale_group.min_size == 0 && scale_group.max_size == 0
@@ -102,7 +103,7 @@ class Cloud::Cycler::CFNStack
     autoscale = AWS::AutoScaling.new(:region => @task.region)
     needs_update = false
     cf_stack.resources.each do |resource|
-      next unless resource.logical_resource_id == 'ScalingGroup'
+      next unless resource.resource_type == 'AWS::AutoScaling::AutoScalingGroup'
 
       scale_group = autoscale.groups[resource.physical_resource_id]
       unless scale_group.min_size == 0 && scale_group.max_size == 0
@@ -198,13 +199,31 @@ class Cloud::Cycler::CFNStack
     @cf_stacks = cf.stacks
   end
 
+  # A hash representation of resources created by the stack.
+  # In the form of { type => [resource-id] }
+  # AWS::CloudFormation::Stack is a special case:
+  # { AWS::CloudFormation::Stack => { substack-name => substack-resources }}
   def cf_resources
-    return @cf_resources if defined? @cf_resources
-    @cf_resources = Hash.new {|h,k| h[k] = [] }
-    cf_stack.resources.each do |res|
-      @cf_resources[res.logical_resource_id].push(res.physical_resource_id)
+    @cf_resources ||= cf_resources_of(cf_stack)
+  end
+
+  def cf_resources_of(stack)
+    resources = Hash.new {|h,k| h[k] = [] }
+    resources['AWS::CloudFormation::Stack'] = {}
+
+    stack.resources.each do |resource|
+      type = resource.resource_type
+      id   = resource.physical_resource_id
+
+      if type == 'AWS::CloudFormation::Stack'
+        substack = cf_stacks[id]
+        resources['AWS::CloudFormation::Stack'][id] = cf_resources_of(substack)
+      else
+        resources[type].push(id)
+      end
     end
-    @cf_resources
+
+    resources
   end
 
   def s3_bucket
