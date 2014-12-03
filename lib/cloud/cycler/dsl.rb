@@ -53,9 +53,13 @@ class Cloud::Cycler::DSL
     task_dsl.instance_eval(&block)
     task.run
   rescue Cloud::Cycler::TaskFailure => e
-    @logger.error("task:#{name}") { "Task failed: #{e.message}" } 
+    if @cycler.logger
+      @cycler.logger.error("task:#{name}") { "Task failed: #{e.message}" }
+    else $stderr.tty?
+      $stderr.puts "task #{name} failed: #{e.message}"
+    end
   end
-end 
+end
 
 class Cloud::Cycler
   def self.run(region, &block)
