@@ -68,27 +68,31 @@ class Cloud::Cycler::Task
     end
   end
 
-  # The provided block should define the resources and the schedule. Afterwards
-  # the defined resources will be either stopped or started, per the schedule.
+  # Process each of the included resources. Looks for settings in dynamodb
+  # which overwrite the task settings.
   def run
-    if @schedule.nil?
-      error { "No schedule provided" }
-      return
-    elsif @schedule.active?
-      debug { "Schedule \"#{@schedule}\" - in hours"}
-      @includes.each do |type, ids|
-        klass = TYPES[type]
-        raise Cloud::Cycler::TaskFailure.new("Unknown type #{type}") if klass.nil?
-        ids.each do |id|
-          klass.new(self, id).start(@actions[type])
+    @includes.each do |type, ids|
+      klass = TYPES[type]
+      raise Cloud::Cycler::TaskFailure.new("Unknown type #{type}") if klass.nil?
+      ids.each do |id|
+        item_schedule = @schedule
+        item_excluded = false
+
+        attrs = ddb_attrs(type, id)
+        if attrs.has_key? 'schedule'
+          item_schedule = Cloud::Cycler::Schedule.parse(attrs['schedule'])
         end
-      end
-    else
-      debug { "Schedule \"#{@schedule}\" - out of hours"}
-      @includes.each do |type, ids|
-        klass = TYPES[type]
-        raise Cloud::Cycler::TaskFailure.new("Unknown type #{type}") if klass.nil?
-        ids.each do |id|
+        item_disabled = attrs['status'] == 'disabled' if attrs.has_key? 'status'
+
+        if item_disabled
+          debug { "#{type}:#{id} disabled - skipping" }
+        elsif item_schedule.nil?
+          warn { "#{type}:#{id} has no schedule - cannot process" }
+        elsif item_schedule.active?
+          debug { "#{type}:#{id} schedule (#{item_schedule}) active" }
+          klass.new(self, id).start(@actions[type])
+        else
+          debug { "#{type}:#{id} schedule (#{item_schedule}) inactive" }
           klass.new(self, id).stop(@actions[type])
         end
       end
@@ -138,6 +142,21 @@ class Cloud::Cycler::Task
   end
 
   private
+
+  def ddb_attrs(type, id)
+    @ddb       ||= AWS::DynamoDB.new(:region => @region)
+
+    if !defined? @ddb_table
+      @ddb_table = @ddb.tables['cloudcycler']
+      @ddb_table.load_schema
+    end
+
+    @ddb_items ||= @ddb_table.items
+
+    item = @ddb_items[type.to_s, id]
+    return {} if item.nil?
+    item.attributes.to_hash
+  end
 
   def ec2_cache
     return @ec2_cache if defined? @ec2_cache

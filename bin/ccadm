@@ -1,0 +1,203 @@
+#!/usr/bin/env ruby
+
+require 'cloud/cycler/schedule'
+require 'aws-sdk'
+require 'trollop'
+
+parser = Trollop::Parser.new do
+  text "Usage: #{$PROGRAM_NAME} <cfn|ec2> <id> [subcmd [args...]]"
+
+  opt :config, 'Config file',
+    :type  => :string
+
+  opt :region, 'AWS region containing cloudcycler DynamoDB',
+    :type  => :string
+
+  opt :table, 'Name of DynamoDB table',
+    :type  => :string
+
+  text %{\nValid subcommands are:
+    show
+      Displays the current resource status
+
+    reset
+      Resets the resource to use task default settings
+
+    schedule <schedule>
+      Change the resource schedule
+    
+    exclude
+      Disable cloud cycling of this resource 
+
+    include
+      Enable cloud cycling of the resource
+
+    disable
+      Force this resource off indefinitely
+
+    enable
+      Reverse disabling of the resource
+  }.rstrip
+
+end
+
+begin
+  opts = parser.parse
+rescue Trollop::HelpNeeded
+  parser.educate
+  exit
+rescue Trollop::CommandLineError => e
+  puts e
+  parser.educate
+  exit 1
+end
+
+type = ARGV.shift
+if type.nil?
+  parser.educate
+  exit 1
+elsif type !~ /^(cfn|ec2)$/
+  $stderr.puts "Unrecognised resource type: #{type}"
+  exit 1
+end
+
+id = ARGV.shift
+if id.nil?
+  parser.educate
+  exit 1
+end
+
+subcmd = ARGV.shift
+args   = ARGV
+
+config = {}
+if opts[:config_given]
+  config = YAML.load_file opts[:config]
+end
+
+region = opts[:region] || config['region']
+log_file = opts[:log] || config['log-file']
+
+dryrun = opts[:dryrun]
+
+if type.nil? || id.nil?
+  puts USAGE
+  exit 1
+end
+
+table_name = opts[:table] || config['ddb-table'] || 'cloudcycler'
+ddb        = AWS::DynamoDB.new(:region => region)
+table      = ddb.tables[table_name]
+table.load_schema
+
+item = table.items[type, id]
+schedule = nil
+status   = nil
+if item
+  schedule = item.attributes['schedule']
+  status   = item.attributes['status']
+end
+
+re_enable = if schedule
+              "  Schedule will be #{schedule} if re-enabled"
+            else
+              "  Default schedule will be used if re-enabled"
+            end
+
+case subcmd
+when 'show', nil
+  if status == 'excluded'
+    puts "#{type}:#{id} is ignored by cloudcycler"
+    puts re_enable
+  elsif status == 'disabled'
+    puts "#{type}:#{id} will be kept off indefinitely"
+    puts re_enable
+  elsif schedule.nil?
+    puts "#{type}:#{id} uses the default schedule"
+  else
+    puts "#{type}:#{id} has the schedule #{schedule}"
+  end
+
+when 'reset'
+  if item.exists? || (item.attributes['status'] == 'included' && item.attributes['schedule'].nil?)
+    item.delete
+    puts "#{type}:#{id} will now be included by the default schedule"
+  else
+    puts "#{type}:#{id} is already included by the default schedule"
+  end
+
+when 'schedule'
+  schedule = args.first
+  if schedule.nil?
+    $stderr.puts "schedule operation requires a schedule argument"
+    exit 1
+  end
+
+  begin
+    schedule = Cloud::Cycler::Schedule.parse(args.first)
+  rescue Cloud::Cycler::InvalidSchedule => e
+    $stderr.puts "Schedule \"#{schedule}\" is invalid, operation aborted"
+    exit 1
+  end
+
+  unless item.exists?
+    item = table.items.create(:type => type, :name => id)
+  end
+
+  if item.attributes['schedule'] == schedule.to_s
+    puts "#{type}:#{id} already has the schedule #{schedule}"
+  else
+    item.attributes.set('schedule' => schedule.to_s)
+    puts "#{type}:#{id} now has the schedule #{schedule}"
+  end
+
+when 'exclude'
+  unless item.exists?
+    item = table.items.create(:type => type, :name => id)
+  end
+  if item.attributes['status'] == 'excluded'
+    puts "#{type}:#{id} is already excluded"
+  else
+    item.attributes.set('status' => 'excluded')
+    puts "#{type}:#{id} will be ignored by cloudcycler"
+  end
+  puts re_enable
+
+when 'include'
+  if item.exists?
+    status = item.attributes['status']
+    case status
+    when 'included', nil
+      puts "#{type}:#{id} is already included in cloudcycling"
+    else
+      item.attributes.set('status' => 'included')
+      puts "#{type}:#{id} is now included in cloudcycling"
+    end
+  else
+    puts "#{type}:#{id} is already included in cloudcycling"
+  end
+  if item.attributes['schedule'].nil?
+    puts "  Default schedule will be used"
+  else
+    puts "  Schedule is #{item.attributes['schedule']}"
+  end
+
+when 'disable'
+  unless item.exists?
+    item = table.items.create(:type => type, :name => id)
+  end
+
+  if item.attributes['status'] == 'disabled'
+    puts "#{type}:#{id} is already disabled"
+    puts re_enable
+  else
+    item.attributes.set('status' => 'disabled')
+    puts "#{type}:#{id} will now be turned off indefinitely"
+    puts re_enable
+  end
+
+else
+  $stderr.puts "Unrecognised subcommand #{subcmd}"
+  parser.educate
+  exit 1
+end

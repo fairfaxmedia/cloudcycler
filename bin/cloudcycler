@@ -21,7 +21,7 @@ opts = Trollop::options do
     :type  => :string
 
   opt :dir, 'Task directory (may be specified multiple times)',
-    :type  => :string, 
+    :type  => :string,
     :multi => true
 
   opt :file, 'Task file (may be specified multiple times)',

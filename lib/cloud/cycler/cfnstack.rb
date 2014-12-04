@@ -229,7 +229,15 @@ class Cloud::Cycler::CFNStack
   def rds_instances_from(resources)
     instances = resources['AWS::RDS::DBInstance'] || []
     resources['AWS::CloudFormation::Stack'].each do |substack, substack_resources|
-      instances += rds_instances_from(resources)
+      instances += rds_instances_from(substack_resources)
+    end
+    instances
+  end
+
+  def ec2_instances_from(resources)
+    instances = resources['AWS::EC2::Instance'] || []
+    resources['AWS::CloudFormation::Stack'].each do |substack, substack_resources|
+      instances += ec2_instances_from(substack_resources)
     end
     instances
   end

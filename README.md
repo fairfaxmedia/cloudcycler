@@ -10,6 +10,10 @@ will read a single task file, or task files from a directory.
 
 Task definitions use a ruby DSL to specify the schedule, and identify resources to be cycled.
 
+A `ccadm` utility is provided to control per-resource settings, which overrides
+task level settings. This way, resources can be rescheduled or excluded without
+having to manage and/or deploy task files.
+
 ## Currently supported:
 
 EC2 and CloudFormation are currently supported. EC2 instances can be stopped
@@ -18,9 +22,9 @@ or have their autoscale groups set to 0 instances.
 
 ## Planned:
 
-* Use AWS tags control schedules.
 * RDS support.
 * Run as a daemon?
+* ccadm REST API
 
 Examples:
 
@@ -28,5 +32,15 @@ task 'cycle-some-resource' do
   schedule 'MTWTF-- 0800-1800'
 
   cloudformation\_include /-dev$/
-  cloudformation\_exclude 'delicate-system-dev'
+  cloudformation\_exclude /fragile-dev$/
 end
+
+$ ccadm -r ap-southeast-2 cfn mystack-dev
+cfn:mystack-dev uses the default schedule
+$ ccadm -r ap-southeast-2 cfn mystack-dev schedule "MTWTF-- 0600-2000"
+cfn:mystack-dev now has the schedule MTWTF-- 0600-2000
+$ ccadm -r ap-southeast-2 cfn mystack-dev exclude
+cfn:mystack-dev will be ignored by cloudcycler
+  Schedule will be MTWTF-- 0600-2000 if re-enabled
+$ ccadm -r ap-southeast-2 cfn mystack-dev reset
+cfn:mystack-dev will now be included in the default schedule

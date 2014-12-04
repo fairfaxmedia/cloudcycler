@@ -23,11 +23,11 @@ class Cloud::Cycler::Schedule
       stop_hr   = md[10].to_i
       stop_min  = md[11].to_i
 
-      raise 'Invalid start hour'   unless (0..23).include? start_hr
-      raise 'Invalid start minute' unless (0..59).include? start_min
+      raise Cloud::Cycler::InvalidSchedule.new('Invalid start hour')   unless (0..23).include? start_hr
+      raise Cloud::Cycler::InvalidSchedule.new('Invalid start minute') unless (0..59).include? start_min
 
-      raise 'Invalid stop hour'   unless (0..23).include? stop_hr
-      raise 'Invalid stop minute' unless (0..59).include? stop_min
+      raise Cloud::Cycler::InvalidSchedule.new('Invalid stop hour')   unless (0..23).include? stop_hr
+      raise Cloud::Cycler::InvalidSchedule.new('Invalid stop minute') unless (0..59).include? stop_min
 
       today = Date.today
 
