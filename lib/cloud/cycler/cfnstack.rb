@@ -62,6 +62,15 @@ class Cloud::Cycler::CFNStack
       return false
     end
 
+    dep_info = @task.cfn_dependencies(@name)
+    if dep_info[:child_of]
+      @task.warn { "Stack #{@name} is a substack of #{dep_info[:child_of]}" }
+      return false
+    unless dep_info[:needs].empty? && dep_info[:feeds].empty?
+      @task.warn { "Stack #{@name} has interdependencies with other stacks" }
+      return false
+    end
+
     true
   end
 
