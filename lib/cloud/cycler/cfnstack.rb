@@ -12,9 +12,14 @@ class Cloud::Cycler::CFNStack
   def start(action)
     case action
     when :default, :start
-      rebuild
-    when :zero_autoscale
-      unzero_autoscale
+      if started?
+        @task.debug  "#{@name} already started - checking scale up" }
+        scale_up
+      else
+        rebuild
+      end
+    when :scale_down
+      scale_up
     else
       raise Cloud::Cycler::TaskFailure.new("Unrecognised cloudformation action #{action}")
     end
@@ -23,12 +28,41 @@ class Cloud::Cycler::CFNStack
   def stop(action)
     case action
     when :default, :stop
-      delete
-    when :zero_autoscale
-      zero_autoscale
+      if rebuild_safe?
+        delete
+      else
+        @task.info { "Stack #{@name} not safe to rebuild, scaling down instead" }
+      end
+    when :scale_down
+      scale_down
     else
       raise Cloud::Cycler::TaskFailure.new("Unrecognised cloudformation action #{action}")
     end
+  end
+
+  def rebuild_safe?
+    tmpl = JSON.parse(cf_stack.template)
+    db_instances = rds_instances_from(resources)
+    if !db_instances.empty
+      if db_instances.size > 1
+        @task.warn { "RDS snapshot rebuild not supported for multiple DBInstances" }
+        return false
+      elsif @task.rds_snapshot_parameter.nil?
+        @task.warn { "DBInstances present but no rds_snapshot_parameter present" }
+        return false
+      elsif tmpl.fetch('Parameters', {}).has_key? @task.rds_snapshot_parameter
+        @task.warn { "DBInstances present but template doesn't accept #{@task.rds_snapshot_parameter}" }
+        return false
+      end
+    end
+
+    ec2_instances = ec2_instances_from(resources)
+    if !ec2_instances.empty?
+      @task.warn { "EBS backed EC2 instances not safe to rebuild" }
+      return false
+    end
+
+    true
   end
 
   # (Re)start a stack from saved template + parameters
@@ -76,7 +110,7 @@ class Cloud::Cycler::CFNStack
 
   # Checks for any autoscale groups created by the stack, and changes their
   # min/max instances to zero.
-  def zero_autoscale
+  def scale_down
     autoscale = AWS::AutoScaling.new(:region => @task.region)
     cf_stack.resources.each do |resource|
       next unless resource.resource_type == 'AWS::AutoScaling::AutoScalingGroup'
@@ -99,7 +133,7 @@ class Cloud::Cycler::CFNStack
     end
   end
 
-  def unzero_autoscale
+  def scale_up
     autoscale = AWS::AutoScaling.new(:region => @task.region)
     needs_update = false
     cf_stack.resources.each do |resource|
@@ -216,8 +250,8 @@ class Cloud::Cycler::CFNStack
       id   = resource.physical_resource_id
 
       if type == 'AWS::CloudFormation::Stack'
-        substack = cf_stacks[id]
-        resources['AWS::CloudFormation::Stack'][id] = cf_resources_of(substack)
+        substack = cf_stacks[resource.stack_name]
+        resources['AWS::CloudFormation::Stack'][substack.name] = cf_resources_of(substack)
       else
         resources[type].push(id)
       end
