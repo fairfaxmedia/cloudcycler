@@ -71,6 +71,8 @@ class Cloud::Cycler::Task
   # Process each of the included resources. Looks for settings in dynamodb
   # which overwrite the task settings.
   def run
+    check_cfn_dependencies
+
     @includes.each do |type, ids|
       klass = TYPES[type]
       raise Cloud::Cycler::TaskFailure.new("Unknown type #{type}") if klass.nil?
@@ -141,6 +143,11 @@ class Cloud::Cycler::Task
     end
   end
 
+  def cfn_dependencies(name)
+    cfn_cache unless defined? @cfn_cache
+    @cfn_cache[:live][name]
+  end
+
   private
 
   def ddb_attrs(type, id)
@@ -171,13 +178,49 @@ class Cloud::Cycler::Task
   end
 
   def cfn_cache
-    return @cfn_cache if defined? @cfn_cache
+    return @cfn_cache[:live].keys + @cfn_cache[:saved] if defined? @cfn_cache
 
-    @cfn_cache = []
-    cf = AWS::CloudFormation.new(:region => @region)
-    cf.stacks.each do |stack|
-      @cfn_cache.push stack.name
+    @cfn_cache = {:live => {}, :saved => []}
+
+    links  = Hash.new {|h,k| h[k] = { :src   => [], :dst   => [] } }
+    stacks = Hash.new {|h,k| h[k] = { :needs => [], :feeds => [] } }
+
+    cfn = AWS::CloudFormation.new(:region => @region)
+    cfn.stacks.each do |stack|
+       stacks[stack.name] = {:needs => [], :feeds => [], :children => []}
+
+       stack.outputs.each do |output|
+         links[output.value][:src].push(stack.name)
+       end
+
+       stack.parameters.each do |param, value|
+         links[value][:dst].push(stack.name)
+       end
+
+       stack.resources.each do |resource|
+         if resource.resource_type == 'AWS::CloudFormation::Stack'
+           substack_name = resource.stack_name
+           stacks[stack.name][:children].push(substack_name)
+           stacks[substack_name][:child_of] = stack.name
+         end
+       end
     end
+    deps = links.reject {|value, data| data[:src].empty? || data[:dst].empty? }
+
+    deps.delete(nil) # TODO - Figure out where these come from
+    deps.each do |value, data|
+      data[:src].each do |src|
+        data[:dst].each do |dst|
+          next if src == dst
+          stacks[dst][:required_by].push(dst)
+          stacks[src][:requires].push(src)
+        end
+      end
+    end
+
+    @cfn_cache[:live] = stacks
+    @cfn_dependencies = deps
+
     s3 = AWS::S3.new(:region => @region)
     bucket = s3.buckets[@bucket]
 
@@ -192,7 +235,7 @@ class Cloud::Cycler::Task
 
     bucket.objects.with_prefix(cf_prefix).each do |object|
       folders = object.key.split('/').drop_while {|folder| folder != 'cloudformation' }
-      @cfn_cache.push(folders[1])
+      @cfn_cache[:saved].push(folders[1])
     end
     @cfn_cache = @cfn_cache.sort.uniq
   end
