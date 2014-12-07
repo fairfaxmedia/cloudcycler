@@ -1,3 +1,5 @@
+require 'cloud/cycler/namespace'
+
 # A Cloud Cycler task takes a defined list of resources and a schedule and
 # turns them off during 'off' hours and restarts them during 'on' hours.
 class Cloud::Cycler::DSL::Task

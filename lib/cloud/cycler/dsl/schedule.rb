@@ -1,3 +1,5 @@
+require 'cloud/cycler/namespace'
+
 class Cloud::Cycler::DSL::Schedule
   def self.empty
     self.new('----- 0000-0000')
