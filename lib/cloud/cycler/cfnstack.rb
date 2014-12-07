@@ -14,7 +14,7 @@ class Cloud::Cycler::CFNStack
   def start(action)
     case action
     when :default, :start
-      if started?
+      if cf_stack.exists?
         @task.debug  "#{@name} already started - checking scale up" }
         scale_up
       else
@@ -179,11 +179,6 @@ class Cloud::Cycler::CFNStack
     end
   end
 
-  # True if the stack exists
-  def started?
-    cf_stack.exists?
-  end
-
   # Save template and parameters to an S3 bucket
   # Bucket may be created if it doesn't exist
   def save_to_s3(bucket_name)
@@ -314,7 +309,7 @@ class Cloud::Cycler::CFNStack
     @s3_bucket = s3.buckets[@task.bucket]
   end
 
-  # Find an S3 object, prepending the task prefix, etc to the supplied path.
+  # Find an S3 object, prepending the task prefix, stack name, etc to the supplied path.
   def s3_object(path)
     real_path = nil
     if @task.bucket_prefix.nil? || @task.bucket_prefix.empty?
