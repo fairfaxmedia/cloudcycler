@@ -3,7 +3,7 @@
 #
 # Most features are currently implemented under Cloud::Cycler::DSL
 
-require 'cloud'
+require 'cloud/cycler/namespace'
 require 'aws-sdk'
 require 'logger'
 

@@ -1,3 +1,4 @@
+require 'cloud/cycler/namespace'
 require 'cloud/cycler/errors'
 require 'time'
 
