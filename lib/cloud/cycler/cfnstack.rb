@@ -9,6 +9,8 @@ class Cloud::Cycler::CFNStack
     @name   = name
   end
 
+  # Start the stack (if necessary)
+  # This will rebuild a stack or scale one back up, as necessary
   def start(action)
     case action
     when :default, :start
@@ -25,6 +27,9 @@ class Cloud::Cycler::CFNStack
     end
   end
 
+  # Stop a stack (if necessary).
+  # Checks if the stack is safe to tear down (via #rebuild_safe?), and falls
+  # back to scaling down ec2 otherwise.
   def stop(action)
     case action
     when :default, :stop
@@ -40,6 +45,8 @@ class Cloud::Cycler::CFNStack
     end
   end
 
+  # Runs a few heuristics to determine if the stack appears to be safe to tear down.
+  # This helps to avoid data loss from deleting something that can't be restored.
   def rebuild_safe?
     tmpl = JSON.parse(cf_stack.template)
     db_instances = rds_instances_from(resources)
@@ -56,12 +63,17 @@ class Cloud::Cycler::CFNStack
       end
     end
 
+    # TODO: figure out how to handle static EC2 resources
     ec2_instances = ec2_instances_from(resources)
     if !ec2_instances.empty?
       @task.warn { "EBS backed EC2 instances not safe to rebuild" }
       return false
     end
 
+    # Check that this stack isn't linked to another stack in some way. Ordering
+    # of teardown and rebuilds is currently unsupported. This might require
+    # running as a daemon, since we will need to wait quite a while for stacks
+    # to delete/build.
     dep_info = @task.cfn_dependencies(@name)
     if dep_info[:child_of]
       @task.warn { "Stack #{@name} is a substack of #{dep_info[:child_of]}" }
@@ -119,6 +131,7 @@ class Cloud::Cycler::CFNStack
 
   # Checks for any autoscale groups created by the stack, and changes their
   # min/max instances to zero.
+  # TODO: Also stop standalone EC2 instances
   def scale_down
     autoscale = AWS::AutoScaling.new(:region => @task.region)
     cf_stack.resources.each do |resource|
@@ -142,6 +155,9 @@ class Cloud::Cycler::CFNStack
     end
   end
 
+  # Checks for any autoscale groups created by the stack, and changes their
+  # min/max instances to zero.
+  # TODO: Also restart standalone EC2 instances
   def scale_up
     autoscale = AWS::AutoScaling.new(:region => @task.region)
     needs_update = false
@@ -216,6 +232,7 @@ class Cloud::Cycler::CFNStack
 
   private
 
+  # Find the latest RDS snapshot taken from a given DB instance name
   def latest_rds_snapshot_of(db_instance_id)
     rds = AWS::RDS.new(:region => @task.region)
     candidate = nil
@@ -250,6 +267,9 @@ class Cloud::Cycler::CFNStack
     @cf_resources ||= cf_resources_of(cf_stack)
   end
 
+  # Gather the resource list from a running stack. For master stacks that
+  # create substacks as resources, recurse through their resource lists as
+  # well.
   def cf_resources_of(stack)
     resources = Hash.new {|h,k| h[k] = [] }
     resources['AWS::CloudFormation::Stack'] = {}
@@ -269,6 +289,7 @@ class Cloud::Cycler::CFNStack
     resources
   end
 
+  # Scan a resource list for RDS instances
   def rds_instances_from(resources)
     instances = resources['AWS::RDS::DBInstance'] || []
     resources['AWS::CloudFormation::Stack'].each do |substack, substack_resources|
@@ -277,6 +298,7 @@ class Cloud::Cycler::CFNStack
     instances
   end
 
+  # Scan a resource list for EC2 instances
   def ec2_instances_from(resources)
     instances = resources['AWS::EC2::Instance'] || []
     resources['AWS::CloudFormation::Stack'].each do |substack, substack_resources|
@@ -285,6 +307,7 @@ class Cloud::Cycler::CFNStack
     instances
   end
 
+  # Memoization for S3 bucket object
   def s3_bucket
     return @s3_bucket if defined? @s3_bucket
 
@@ -292,6 +315,7 @@ class Cloud::Cycler::CFNStack
     @s3_bucket = s3.buckets[@task.bucket]
   end
 
+  # Find an S3 object, prepending the task prefix, etc to the supplied path.
   def s3_object(path)
     real_path = nil
     if @task.bucket_prefix.nil? || @task.bucket_prefix.empty?
