@@ -144,8 +144,8 @@ class Cloud::Cycler::CFNStack
       end
 
       @task.unsafe("Change autoscale #{resource.physical_resource_id} to zero") do
-        s3_object = s3_bucket.objects["cloudformation/#{@name}/autoscale/#{scale_group.name}.json"]
-        s3_object.write JSON.generate(
+        obj = s3_object("autoscale/#{scale_group.name}.json")
+        obj.write JSON.generate(
           :min_size         => scale_group.min_size,
           :max_size         => scale_group.max_size,
           :desired_capacity => scale_group.desired_capacity
@@ -171,8 +171,7 @@ class Cloud::Cycler::CFNStack
       end
 
       @task.unsafe("Reset autoscale #{resource.physical_resource_id} to previous values") do
-        s3_object = s3_bucket.objects["cloudformation/#{@name}/autoscale/#{scale_group.name}.json"]
-        config = JSON.parse(s3_object.read)
+        config = JSON.parse(s3_object("autoscale/#{scale_group.name}.json").read)
         scale_group.update :min_size         => config['min_size'],
                            :max_size         => config['max_size'],
                            :desired_capacity => config['desired_capacity']
@@ -197,9 +196,9 @@ class Cloud::Cycler::CFNStack
     resources = cf_resources
 
     @task.unsafe("Writing #{@name} to bucket #{s3_bucket.name}") do
-      s3_object("#{@name}/template.json").write(template)
-      s3_object("#{@name}/parameters.json").write(params.to_json)
-      s3_object("#{@name}/resources.json").write(resources.to_json)
+      s3_object("template.json").write(template)
+      s3_object("parameters.json").write(params.to_json)
+      s3_object("resources.json").write(resources.to_json)
     end
   end
 
@@ -209,9 +208,9 @@ class Cloud::Cycler::CFNStack
       raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{s3_bucket.name}")
     end
 
-    template  = s3_object("#{@name}/template.json")
-    params    = s3_object("#{@name}/parameters.json").read
-    resources = s3_object("#{@name}/resources.json").read
+    template  = s3_object("template.json")
+    params    = s3_object("parameters.json").read
+    resources = s3_object("resources.json").read
     return template, JSON.parse(params), JSON.parse(resources)
   end
 
@@ -224,9 +223,9 @@ class Cloud::Cycler::CFNStack
       raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{s3_bucket.name}")
     end
 
-    template  = s3_object("#{@name}/template.json")
-    params    = s3_object("#{@name}/parameters.json").read
-    resources = s3_object("#{@name}/resources.json").read
+    template  = s3_object("template.json")
+    params    = s3_object("parameters.json").read
+    resources = s3_object("resources.json").read
     cf_stacks.create(@name, template, :parameters => JSON.parse(params))
   end
 
@@ -321,9 +320,9 @@ class Cloud::Cycler::CFNStack
     if @task.bucket_prefix.nil? || @task.bucket_prefix.empty?
       real_path = "cloudformation/#{path}"
     elsif @task.bucket_prefix.end_with? '/'
-      real_path = @task.bucket_prefix + "cloudformation/#{path}"
+      real_path = @task.bucket_prefix + "cloudformation/#{@name}/#{path}"
     else
-      real_path = "#{@task.bucket_prefix}/cloudformation/#{path}"
+      real_path = "#{@task.bucket_prefix}/cloudformation/#{@name}/#{path}"
     end
 
     s3_bucket.objects[real_path]
