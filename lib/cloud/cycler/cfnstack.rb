@@ -96,7 +96,9 @@ class Cloud::Cycler::CFNStack
       db_instances = rds_instances_from(resources)
       if !db_instances.nil? && @task.rds_snapshot_parameter
         if db_instances.size > 1
-          raise Cloud::Cycler::TaskFailure.new("Cannot use rds_snapshot_parameter with multiple DBInstances")
+          # This probably shouldn't happen, but if it does it might require
+          # manual intervention to make sure the stack is rebuild properly.
+          raise Cloud::Cycler::CycleFailure.new("Failed to rebuild stack #{@name} with #{db_instances.size} RDS instances")
         end
 
         if db_instances.size == 1
