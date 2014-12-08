@@ -15,7 +15,7 @@ class Cloud::Cycler::CFNStack
     case action
     when :default, :start
       if cf_stack.exists?
-        @task.debug  "#{@name} already started - checking scale up" }
+        @task.debug { "#{@name} already started - checking scale up" }
         scale_up
       else
         rebuild
@@ -78,7 +78,7 @@ class Cloud::Cycler::CFNStack
     if dep_info[:child_of]
       @task.warn { "Stack #{@name} is a substack of #{dep_info[:child_of]}" }
       return false
-    unless dep_info[:needs].empty? && dep_info[:feeds].empty?
+    elsif !dep_info[:needs].empty? || !dep_info[:feeds].empty?
       @task.warn { "Stack #{@name} has interdependencies with other stacks" }
       return false
     end
@@ -283,7 +283,7 @@ class Cloud::Cycler::CFNStack
   def autoscale_groups_from(resources)
     groups = resources['AWS::AutoScaling::AutoScalingGroup'] || {}
     resources['AWS::CloudFormation::Stack'].each do |substack, substack_resources|
-      groups = groups.merge(autoscale_group_from(substack_resources)
+      groups = groups.merge(autoscale_group_from(substack_resources))
     end
     groups
   end
