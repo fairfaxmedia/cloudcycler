@@ -31,6 +31,11 @@ class Cloud::Cycler::CFNStack
   # Checks if the stack is safe to tear down (via #rebuild_safe?), and falls
   # back to scaling down ec2 otherwise.
   def stop(action)
+    if !cf_stack.exists?
+      @task.debug { "#{@name} already suspended" }
+      return
+    end
+
     case action
     when :default, :stop
       if rebuild_safe?
