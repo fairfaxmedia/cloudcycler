@@ -314,7 +314,7 @@ class Cloud::Cycler::CFNStack
   def autoscale_groups_from(resources)
     groups = resources['AWS::AutoScaling::AutoScalingGroup'] || {}
     resources['AWS::CloudFormation::Stack'].each do |substack, substack_resources|
-      groups = groups.merge(autoscale_group_from(substack_resources))
+      groups = groups.merge(autoscale_groups_from(substack_resources))
     end
     groups
   end
