@@ -135,24 +135,14 @@ class Cloud::Cycler::CFNStack
   # min/max instances to zero.
   # TODO: Also stop standalone EC2 instances
   def scale_down
-    autoscale = AWS::AutoScaling.new(:region => @task.region)
-    cf_stack.resources.each do |resource|
-      next unless resource.resource_type == 'AWS::AutoScaling::AutoScalingGroup'
+    @task.unsafe("Change autoscale #{resource.physical_resource_id} to zero") do
+      save_to_s3
 
-      scale_group = autoscale.groups[resource.physical_resource_id]
-      if scale_group.min_size == 0 && scale_group.max_size == 0
-        @task.debug { "Stack #{@name} scale group #{scale_group.name} already zeroed" }
-        next
-      end
-
-      @task.unsafe("Change autoscale #{resource.physical_resource_id} to zero") do
-        obj = s3_object("autoscale/#{scale_group.name}.json")
-        obj.write JSON.generate(
-          :min_size         => scale_group.min_size,
-          :max_size         => scale_group.max_size,
-          :desired_capacity => scale_group.desired_capacity
-        )
-        scale_group.update(:min_size => 0, :max_size => 0, :desired_capacity => 0)
+      autoscale = AWS::AutoScaling.new(:region => @task.region)
+      groups = autoscale_groups_from(cf_resources)
+      groups.each do |id, params|
+        group = autoscale.groups[id]
+        group.update(:min_size => 0, :max_size => 0, :desired_capacity => 0)
       end
     end
   end
@@ -161,22 +151,18 @@ class Cloud::Cycler::CFNStack
   # min/max instances to zero.
   # TODO: Also restart standalone EC2 instances
   def scale_up
-    autoscale = AWS::AutoScaling.new(:region => @task.region)
-    needs_update = false
-    cf_stack.resources.each do |resource|
-      next unless resource.resource_type == 'AWS::AutoScaling::AutoScalingGroup'
+    @task.unsafe("Reset autoscale #{resource.physical_resource_id} to previous values") do
+      template, params, resources = load_from_s3(@task.bucket)
+      groups = autoscale_groups_from(resources)
 
-      scale_group = autoscale.groups[resource.physical_resource_id]
-      unless scale_group.min_size == 0 && scale_group.max_size == 0
-        @task.debug { "Stack #{@name} scale group #{scale_group.name} already unzeroed" }
-        next
-      end
-
-      @task.unsafe("Reset autoscale #{resource.physical_resource_id} to previous values") do
-        config = JSON.parse(s3_object("autoscale/#{scale_group.name}.json").read)
-        scale_group.update :min_size         => config['min_size'],
-                           :max_size         => config['max_size'],
-                           :desired_capacity => config['desired_capacity']
+      autoscale = AWS::AutoScaling.new(:region => @task.region)
+      groups.each do |id, params|
+        group = autoscale.groups[id]
+        group.update(
+          :min_size         => params['min_size'],
+          :max_size         => params['max_size'],
+          :desired_capacity => params['desired_capacity']
+        )
       end
     end
   end
@@ -267,8 +253,13 @@ class Cloud::Cycler::CFNStack
   # create substacks as resources, recurse through their resource lists as
   # well.
   def cf_resources_of(stack)
-    resources = Hash.new {|h,k| h[k] = [] }
-    resources['AWS::CloudFormation::Stack'] = {}
+    resources = Hash.new do |h,k|
+      if k == 'AWS::CloudFormation::Stack' || k == 'AWS::AutoScaling::AutoScalingGroup'
+        h[k] = {}
+      else
+        h[k] = []
+      end
+    end
 
     stack.resources.each do |resource|
       type = resource.resource_type
@@ -277,6 +268,14 @@ class Cloud::Cycler::CFNStack
       if type == 'AWS::CloudFormation::Stack'
         substack = cf_stacks[resource.stack_name]
         resources['AWS::CloudFormation::Stack'][substack.name] = cf_resources_of(substack)
+      elsif type == 'AWS::AutoScaling::AutoScalingGroup'
+        autoscale = AWS::AutoScaling.new(:region => @task.region)
+        scale_group = autoscale.groups[id]
+        resources['AWS::AutoScaling::AutoScalingGroup'][id] = {
+          :min_size         => scale_group.min_size,
+          :max_size         => scale_group.max_size,
+          :desired_capacity => scale_group.desired_capacity
+        }
       else
         resources[type].push(id)
       end
@@ -301,6 +300,15 @@ class Cloud::Cycler::CFNStack
       instances += ec2_instances_from(substack_resources)
     end
     instances
+  end
+
+  # Scan a resource list for EC2 instances
+  def autoscale_groups_from(resources)
+    groups = resources['AWS::AutoScaling::AutoScalingGroup'] || {}
+    resources['AWS::CloudFormation::Stack'].each do |substack, substack_resources|
+      groups = groups.merge(autoscale_group_from(substack_resources)
+    end
+    groups
   end
 
   # Memoization for S3 bucket object
