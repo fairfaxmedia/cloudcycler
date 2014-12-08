@@ -190,11 +190,13 @@ class Cloud::Cycler::CFNStack
     template  = cf_stack.template
     params    = cf_stack.parameters
     resources = cf_resources
+    outputs   = cf_outputs
 
     @task.unsafe("Writing #{@name} to bucket #{s3_bucket.name}") do
       s3_object("template.json").write(template)
       s3_object("parameters.json").write(params.to_json)
       s3_object("resources.json").write(resources.to_json)
+      s3_object("outputs.json").write(outputs.to_json)
     end
   end
 
@@ -233,6 +235,18 @@ class Cloud::Cycler::CFNStack
 
     cf = AWS::CloudFormation.new(:region => @task.region)
     @cf_stacks = cf.stacks
+  end
+
+  # Fetch the stack outputs, and convert to a Hash
+  def cf_outputs
+    return @cf_outputs if defined? @cf_ouputs
+    @cf_outputs = {}
+
+    cf_stack.outputs.each do |out|
+      @cf_outputs[out.key] = out.value
+    end
+
+    @cf_outputs
   end
 
   # A hash representation of resources created by the stack.
