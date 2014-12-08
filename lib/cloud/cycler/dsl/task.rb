@@ -75,10 +75,13 @@ class Cloud::Cycler::DSL::Task
     @task.schedule = Cloud::Cycler::Schedule.parse(spec)
   end
 
+  # Placeholder - EC2 only allows one stop/start action right now
   def ec2_action(action)
     @task.actions[:ec2] = action
   end
 
+  # Select :delete or :scale_down as the default stop action. :delete will fall
+  # back to scaling down anyway if certain checks fail.
   def cf_action(action)
     @task.actions[:cfn] = action
   end

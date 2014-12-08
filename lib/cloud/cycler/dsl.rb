@@ -2,7 +2,6 @@ require 'cloud/cycler'
 
 # Provides the Domain Specific Language for Cloud::Cycler
 class Cloud::Cycler::DSL
-  require 'cloud/cycler/dsl/schedule'
   require 'cloud/cycler/dsl/task'
 
   # Initialize a new Cloud::Cycler::DSL application.
