@@ -102,7 +102,7 @@ class Cloud::Cycler::CFNStack
         end
 
         if db_instances.size == 1
-          db_instance_id  = db_instances.first
+          db_instance_id = db_instances.first
 
           snapshot_id = latest_rds_snapshot_of(db_instance_id)
           unless snapshot_id.nil?
