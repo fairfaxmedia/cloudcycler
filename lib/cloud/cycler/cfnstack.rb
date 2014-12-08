@@ -189,15 +189,6 @@ class Cloud::Cycler::CFNStack
     return template, JSON.parse(params), JSON.parse(resources)
   end
 
-  # Recreate the stack, supplying the S3 URL to the API. This overcomes
-  # problems passing very large templates as parameters to API calls.
-  def restore_from_s3(bucket)
-    template  = s3_object("template.json")
-    params    = s3_object("parameters.json").read
-    resources = s3_object("resources.json").read
-    cf_stacks.create(@name, template, :parameters => JSON.parse(params))
-  end
-
   private
 
   # Find the latest RDS snapshot taken from a given DB instance name
