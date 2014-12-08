@@ -7,6 +7,7 @@ class Cloud::Cycler::EC2Instance
     @instance_id = instance_id
   end
 
+  # Shut down the ec2 instance
   def stop
     unless ec2_instance.exists?
       raise Cloud::Cycler::TaskFailure.new("EC2 instance '#{@instance_id}' does not exist")
@@ -27,6 +28,7 @@ class Cloud::Cycler::EC2Instance
     raise err
   end
 
+  # Start the ec2 instance
   def start
     unless ec2_instance.exists?
       raise Cloud::Cycler::TaskFailure.new("EC2 instance '#{@instance_id}' does not exist")
@@ -49,12 +51,14 @@ class Cloud::Cycler::EC2Instance
 
   private
 
+  # Memoization for AWS::EC2::InstanceCollection
   def ec2_instances
     return @ec2_instances if defined? @ec2_instances
     ec2 = AWS::EC2.new(:region => @task.region)
     @ec2_instances = ec2.instances
   end
 
+  # Memoization for AWS::EC2::Instance
   def ec2_instance
     @ec2_instance ||= ec2_instances[@instance_id]
   end

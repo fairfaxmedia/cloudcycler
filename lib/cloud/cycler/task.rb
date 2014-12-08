@@ -1,8 +1,19 @@
+require 'cloud/cycler/namespace'
+
+# A task in cloudcycler is a collection of resources to be scheduled.
+# Mostly handles finding the resources and applying include/exclude rules. The
+# task level settings can be overwritten with settings in DynamoDB, which is
+# handled here.
+#
+# The task also handles some broader scans such as building a dependency graph
+# from CloudFormation outputs and inputs (parameters). The logic against the
+# dependency graph is applied in the CFNStack resources though.
 class Cloud::Cycler::Task
   require 'cloud/cycler/ec2instance'
   require 'cloud/cycler/cfnstack'
   require 'cloud/cycler/schedule'
 
+  # Since we pass around type = :cfn variables, this allows klass = TYPES[type]
   TYPES = {
     :ec2 => Cloud::Cycler::EC2Instance,
     :cfn => Cloud::Cycler::CFNStack,
@@ -38,15 +49,23 @@ class Cloud::Cycler::Task
     @cycler.logger
   end
 
+  # Add an exclude rule to the list. Exclude object should usually be a String
+  # or a Regexp, but may be anything that responds to #===.
   def exclude(type, exclusion)
     @excludes[type].push(exclusion)
     @includes[type].reject! {|id| exclusion === id }
   end
 
+  # Check if an id matches anything in the excludes list
   def excluded?(type, id)
     @excludes[type].any? {|ex| ex === id }
   end
 
+  # Add an exclude rule to the list. Exclude object should usually be a String
+  # or a Regexp, but may be anything that responds to #===.
+  # TODO: I don't link the per type logic. I need to get cfn_cache and
+  # ec2_cache to return data in the same format to consolidate them. cfn_cache
+  # needs refactoring first though.
   def include(type, id)
     case type
     when :cfn
@@ -132,6 +151,7 @@ class Cloud::Cycler::Task
     end
   end
 
+  # Another convenience method for when you have type = :cfn variables
   def cache(type)
     case type
     when :cfn
@@ -143,6 +163,8 @@ class Cloud::Cycler::Task
     end
   end
 
+  # Grabs the hash containing a stacks dependencies and/or parent/child
+  # relationships from the list cfn_cache builds.
   def cfn_dependencies(name)
     cfn_cache unless defined? @cfn_cache
     @cfn_cache[:live][name]
@@ -150,11 +172,12 @@ class Cloud::Cycler::Task
 
   private
 
+  # Lookup per resource settings from DynamoDB
   def ddb_attrs(type, id)
     @ddb       ||= AWS::DynamoDB.new(:region => @region)
 
     if !defined? @ddb_table
-      @ddb_table = @ddb.tables['cloudcycler']
+      @ddb_table = @ddb.tables['cloudcycler'] # FIXME - don't hardcode names
       @ddb_table.load_schema
     end
 
@@ -165,6 +188,9 @@ class Cloud::Cycler::Task
     item.attributes.to_hash
   end
 
+  # Scan a list of EC2 instances. It would probably be more efficient to use
+  # filters in the request, but that doesn't work as well for other AWS
+  # technologies and I'd rather keep them all consistent.
   def ec2_cache
     return @ec2_cache if defined? @ec2_cache
 
@@ -177,6 +203,15 @@ class Cloud::Cycler::Task
     @ec2_cache
   end
 
+  # Scans a list of active cloudformation stacks, and also a list of stacks
+  # that have been "stopped". i.e. have had their details saved to S3 so they
+  # can be recreated.
+  # While it's scanning all the active stacks, it also checks their outputs,
+  # parameters (inputs), and child resources to build a dependency graph.
+  # FIXME - This method is getting super-huge. It needs to be broken down into
+  # smaller methods. The actual return value should also be changed to make it
+  # consistent with e.g. ec2_cache which would allow some of the logic above to
+  # be cleaned up.
   def cfn_cache
     return @cfn_cache[:live].keys + @cfn_cache[:saved] if defined? @cfn_cache
 
@@ -224,6 +259,7 @@ class Cloud::Cycler::Task
     s3 = AWS::S3.new(:region => @region)
     bucket = s3.buckets[@bucket]
 
+    # TODO - There is overlap here with CFNStack#s3_object - this should be moved to a public method that CFNStack#s3_object can wrap
     cf_prefix = nil
     if @bucket_prefix.nil? || @bucket_prefix.empty?
       cf_prefix = 'cloudformation'

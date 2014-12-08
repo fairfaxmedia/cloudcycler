@@ -38,15 +38,15 @@ class Cloud::Cycler::Schedule
     raise Cloud::Cycler::InvalidSchedule.new(str)
   end
 
-  # * monday: boolean.
-  # * tuesday: boolean
+  # * monday:    boolean
+  # * tuesday:   boolean
   # * wednesday: boolean
-  # * thursday: boolean
-  # * friday: boolean
-  # * start_hr: integer (0-23)
+  # * thursday:  boolean
+  # * friday:    boolean
+  # * start_hr:  integer (0-23)
   # * start_min: integer (0-59)
-  # * stop_hr: integer (0-23)
-  # * stop_min: integer (0-59)
+  # * stop_hr:   integer (0-23)
+  # * stop_min:  integer (0-59)
   def initialize(monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_hr, start_min, stop_hr, stop_min)
     @days = [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
 
@@ -78,7 +78,7 @@ class Cloud::Cycler::Schedule
 
     start = Time.new(now.year, now.month, now.day, @start_hr, @start_min)
     stop  = Time.new(now.year, now.month, now.day, @stop_hr, @stop_min)
-    
+
     now.between?(start, stop)
   end
 end
