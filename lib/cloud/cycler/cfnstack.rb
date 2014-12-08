@@ -135,7 +135,7 @@ class Cloud::Cycler::CFNStack
   # min/max instances to zero.
   # TODO: Also stop standalone EC2 instances
   def scale_down
-    @task.unsafe("Change autoscale #{resource.physical_resource_id} to zero") do
+    @task.unsafe("Scaling down stack #{@name}") do
       save_to_s3
 
       autoscale = AWS::AutoScaling.new(:region => @task.region)
@@ -151,10 +151,22 @@ class Cloud::Cycler::CFNStack
   # min/max instances to zero.
   # TODO: Also restart standalone EC2 instances
   def scale_up
-    @task.unsafe("Reset autoscale #{resource.physical_resource_id} to previous values") do
-      template, params, resources = load_from_s3(@task.bucket)
-      groups = autoscale_groups_from(resources)
+    template, params, resources = load_from_s3(@task.bucket)
+    groups = autoscale_groups_from(resources)
 
+    groups.keys.each do |id|
+      params = groups[id]
+      if params['min_size'] != 0 || params['max_size'] != 0 || params['desired_capactity'] != 0
+        groups.delete(id)
+      end
+    end
+
+    if groups.empty?
+      @task.debug { "Stack #{@name} already scaled up (noop)" }
+      return
+    end
+
+    @task.unsafe("Scaling up stack #{@name}") do
       autoscale = AWS::AutoScaling.new(:region => @task.region)
       groups.each do |id, params|
         group = autoscale.groups[id]
