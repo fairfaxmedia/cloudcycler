@@ -170,10 +170,6 @@ class Cloud::Cycler::CFNStack
   # Save template and parameters to an S3 bucket
   # Bucket may be created if it doesn't exist
   def save_to_s3(bucket_name)
-    unless s3_bucket.exists?
-      raise Cloud::Cycler::TaskFailure.new("Cannot save #{@name} to non-existant bucket #{s3_bucket.name}")
-    end
-
     template  = cf_stack.template
     params    = cf_stack.parameters
     resources = cf_resources
@@ -187,10 +183,6 @@ class Cloud::Cycler::CFNStack
 
   # Load template and parameters that were previously saved to an S3 bucket
   def load_from_s3(bucket)
-    unless s3_bucket.exists?
-      raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{s3_bucket.name}")
-    end
-
     template  = s3_object("template.json")
     params    = s3_object("parameters.json").read
     resources = s3_object("resources.json").read
@@ -200,12 +192,6 @@ class Cloud::Cycler::CFNStack
   # Recreate the stack, supplying the S3 URL to the API. This overcomes
   # problems passing very large templates as parameters to API calls.
   def restore_from_s3(bucket)
-    bucket = s3_bucket
-
-    unless bucket.exists?
-      raise Cloud::Cycler::TaskFailure.new("Cannot load #{@name} from non-existant bucket #{s3_bucket.name}")
-    end
-
     template  = s3_object("template.json")
     params    = s3_object("parameters.json").read
     resources = s3_object("resources.json").read
@@ -321,15 +307,6 @@ class Cloud::Cycler::CFNStack
 
   # Find an S3 object, prepending the task prefix, stack name, etc to the supplied path.
   def s3_object(path)
-    real_path = nil
-    if @task.bucket_prefix.nil? || @task.bucket_prefix.empty?
-      real_path = "cloudformation/#{path}"
-    elsif @task.bucket_prefix.end_with? '/'
-      real_path = @task.bucket_prefix + "cloudformation/#{@name}/#{path}"
-    else
-      real_path = "#{@task.bucket_prefix}/cloudformation/#{@name}/#{path}"
-    end
-
-    s3_bucket.objects[real_path]
+    @task.s3_object("cloudformation/#{@name}/#{path}")
   end
 end

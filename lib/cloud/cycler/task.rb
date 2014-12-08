@@ -170,6 +170,24 @@ class Cloud::Cycler::Task
     @cfn_cache[:live][name]
   end
 
+  def s3_object(suffix)
+    @s3        ||= AWS::S3.new(:region => @region)
+    @s3_bucket ||= @s3.buckets[@bucket]
+
+    unless @s3_bucket.exists?
+      raise Cloud::Cycler::TaskFailure.new("S3 bucket #{@bucket} does not exist")
+    end
+
+    object_path = ''
+    if @bucket_prefix.nil? || @bucket_prefix.empty?
+      object_path = suffix
+    else
+      object_path = "#{@bucket_prefix.chomp('/')}/#{suffix}"
+    end
+
+    s3_objects[object_path]
+  end
+
   private
 
   # Lookup per resource settings from DynamoDB
@@ -259,14 +277,11 @@ class Cloud::Cycler::Task
     s3 = AWS::S3.new(:region => @region)
     bucket = s3.buckets[@bucket]
 
-    # TODO - There is overlap here with CFNStack#s3_object - this should be moved to a public method that CFNStack#s3_object can wrap
     cf_prefix = nil
     if @bucket_prefix.nil? || @bucket_prefix.empty?
       cf_prefix = 'cloudformation'
-    elsif @bucket_prefix.end_with? '/'
-      cf_prefix = @bucket_prefix + 'cloudformation'
     else
-      cf_prefix = "#{@bucket_prefix}/cloudformation"
+      cf_prefix = "#{@bucket_prefix.chomp('/')}/cloudformation"
     end
 
     bucket.objects.with_prefix(cf_prefix).each do |object|
