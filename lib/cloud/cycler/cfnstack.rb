@@ -213,7 +213,7 @@ class Cloud::Cycler::CFNStack
     rds = AWS::RDS.new(:region => @task.region)
     candidate = nil
     rds.snapshots.each do |snap|
-      next unless snap.snap.db_instance_id == db_instance_id
+      next unless snap.db_instance_id == db_instance_id
 
       if candidate.nil? || candidate.created_at < snap.created_at
         candidate = snap
