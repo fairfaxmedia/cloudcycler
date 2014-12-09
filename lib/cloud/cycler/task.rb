@@ -167,7 +167,7 @@ class Cloud::Cycler::Task
   # relationships from the list cfn_cache builds.
   def cfn_dependencies(name)
     cfn_cache unless defined? @cfn_cache
-    @cfn_cache[:live][name]
+    @cfn_cache['live'][name]
   end
 
   def s3_object(suffix)

@@ -54,22 +54,22 @@ class Cloud::Cycler::CFNStack
   # This helps to avoid data loss from deleting something that can't be restored.
   def rebuild_safe?
     tmpl = JSON.parse(cf_stack.template)
-    db_instances = rds_instances_from(resources)
-    if !db_instances.empty
+    db_instances = rds_instances_from(cf_resources)
+    if !db_instances.empty?
       if db_instances.size > 1
         @task.warn { "RDS snapshot rebuild not supported for multiple DBInstances" }
         return false
       elsif @task.rds_snapshot_parameter.nil?
         @task.warn { "DBInstances present but no rds_snapshot_parameter present" }
         return false
-      elsif tmpl.fetch('Parameters', {}).has_key? @task.rds_snapshot_parameter
+      elsif !tmpl.fetch('Parameters', {}).has_key?(@task.rds_snapshot_parameter)
         @task.warn { "DBInstances present but template doesn't accept #{@task.rds_snapshot_parameter}" }
         return false
       end
     end
 
     # TODO: figure out how to handle static EC2 resources
-    ec2_instances = ec2_instances_from(resources)
+    ec2_instances = ec2_instances_from(cf_resources)
     if !ec2_instances.empty?
       @task.warn { "EBS backed EC2 instances not safe to rebuild" }
       return false
@@ -80,12 +80,14 @@ class Cloud::Cycler::CFNStack
     # running as a daemon, since we will need to wait quite a while for stacks
     # to delete/build.
     dep_info = @task.cfn_dependencies(@name)
-    if dep_info[:child_of]
-      @task.warn { "Stack #{@name} is a substack of #{dep_info[:child_of]}" }
-      return false
-    elsif !dep_info[:needs].empty? || !dep_info[:feeds].empty?
-      @task.warn { "Stack #{@name} has interdependencies with other stacks" }
-      return false
+    if dep_info
+      if dep_info['child_of']
+        @task.warn { "Stack #{@name} is a substack of #{dep_info['child_of']}" }
+        return false
+      elsif !dep_info['needs'].empty? || !dep_info['feeds'].empty?
+        @task.warn { "Stack #{@name} has interdependencies with other stacks" }
+        return false
+      end
     end
 
     true
@@ -140,11 +142,15 @@ class Cloud::Cycler::CFNStack
   # min/max instances to zero.
   # TODO: Also stop standalone EC2 instances
   def scale_down
+    groups = autoscale_groups_from(cf_resources)
+    if groups.all? {|_, params| params.all? {|_, v| v == 0 } }
+      @task.debug { "Stack #{@name} already scaled down" }
+      return
+    end
     @task.unsafe("Scaling down stack #{@name}") do
       save_to_s3
 
       autoscale = AWS::AutoScaling.new(:region => @task.region)
-      groups = autoscale_groups_from(cf_resources)
       groups.each do |id, params|
         group = autoscale.groups[id]
         group.update(:min_size => 0, :max_size => 0, :desired_capacity => 0)
@@ -274,7 +280,7 @@ class Cloud::Cycler::CFNStack
       id   = resource.physical_resource_id
 
       if type == 'AWS::CloudFormation::Stack'
-        substack = cf_stacks[resource.stack_name]
+        substack = cf_stacks[id]
         resources['AWS::CloudFormation::Stack'][substack.name] = cf_resources_of(substack)
       elsif type == 'AWS::AutoScaling::AutoScalingGroup'
         autoscale = AWS::AutoScaling.new(:region => @task.region)
