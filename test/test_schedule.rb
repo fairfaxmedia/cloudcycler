@@ -1,7 +1,7 @@
 require 'minitest/autorun'
 require 'cloud/cycler/schedule'
 
-class TestSchedule < Minitest::Unit::TestCase
+class TestSchedule < Minitest::Test
   [:monday, :tuesday, :wednesday, :thursday, :friday, :saturday, :sunday].each_with_index do |day, idx|
     active_string   = 'MTWTFSS 0800-1800'
     inactive_string = '------- 0800-1800'

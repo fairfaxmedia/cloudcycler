@@ -2,7 +2,7 @@ require 'minitest/autorun'
 require 'cloud/cycler/ec2instance'
 require 'cctest'
 
-class TestEC2Instance < Minitest::Unit::TestCase
+class TestEC2Instance < Minitest::Test
   def test_safe_start_stopped_instance
     instance = Cloud::Cycler::EC2Instance.new(MockTask.new(false), 'i-deadbeef')
     collection = MockInstanceCollection.new

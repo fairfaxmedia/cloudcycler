@@ -1,6 +1,6 @@
 require 'cloud/cycler/task'
 
-class TestTasks < Minitest::Unit::TestCase
+class TestTasks < Minitest::Test
   def setup
     @task = Cloud::Cycler::Task.new(MockCycler.new, 'dummy-task')
     @test_stacks = [
