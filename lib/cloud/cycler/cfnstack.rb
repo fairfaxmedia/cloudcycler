@@ -97,31 +97,31 @@ class Cloud::Cycler::CFNStack
   def rebuild
     if cf_stack.exists?
       @task.debug { "Stack #{@name} already running (noop)"}
-    else
-      template, params, resources = load_from_s3(@task.bucket)
+      return
+    end
+    template, params, resources = load_from_s3(@task.bucket)
 
-      db_instances = rds_instances_from(resources)
-      if !db_instances.nil? && @task.rds_snapshot_parameter
-        if db_instances.size > 1
-          # This probably shouldn't happen, but if it does it might require
-          # manual intervention to make sure the stack is rebuild properly.
-          raise Cloud::Cycler::CycleFailure.new("Failed to rebuild stack #{@name} with #{db_instances.size} RDS instances")
-        end
-
-        if db_instances.size == 1
-          db_instance_id = db_instances.first
-
-          snapshot_id = latest_rds_snapshot_of(db_instance_id)
-          unless snapshot_id.nil?
-            @task.debug { "Setting parameter #{@task.rds_snapshot_parameter} to #{snapshot_id}" }
-            params[@task.rds_snapshot_parameter] = snapshot_id
-          end
-        end
+    db_instances = rds_instances_from(resources)
+    if !db_instances.nil? && @task.rds_snapshot_parameter
+      if db_instances.size > 1
+        # This probably shouldn't happen, but if it does it might require
+        # manual intervention to make sure the stack is rebuild properly.
+        raise Cloud::Cycler::CycleFailure.new("Failed to rebuild stack #{@name} with #{db_instances.size} RDS instances")
       end
 
-      @task.unsafe("Building stack #{@name}") do
-        cf_stacks.create(@name, template, :parameters => params)
+      if db_instances.size == 1
+        db_instance_id = db_instances.first
+
+        snapshot_id = latest_rds_snapshot_of(db_instance_id)
+        unless snapshot_id.nil?
+          @task.debug { "Setting parameter #{@task.rds_snapshot_parameter} to #{snapshot_id}" }
+          params[@task.rds_snapshot_parameter] = snapshot_id
+        end
       end
+    end
+
+    @task.unsafe("Building stack #{@name}") do
+      cf_stacks.create(@name, template, :parameters => params)
     end
   end
 
@@ -138,15 +138,20 @@ class Cloud::Cycler::CFNStack
     end
   end
 
+  def scaled_down?
+    groups = autoscale_groups_from(cf_resources)
+    groups.all? {|_, params| params.all? {|_, v| v == 0 } }
+  end
+
   # Checks for any autoscale groups created by the stack, and changes their
   # min/max instances to zero.
   # TODO: Also stop standalone EC2 instances
   def scale_down
-    groups = autoscale_groups_from(cf_resources)
-    if groups.all? {|_, params| params.all? {|_, v| v == 0 } }
+    if scaled_down?
       @task.debug { "Stack #{@name} already scaled down" }
       return
     end
+
     @task.unsafe("Scaling down stack #{@name}") do
       save_to_s3
 
@@ -162,6 +167,11 @@ class Cloud::Cycler::CFNStack
   # min/max instances to zero.
   # TODO: Also restart standalone EC2 instances
   def scale_up
+    if !scaled_down?
+      @task.debug { "Stack #{@name} already scaled up" }
+      return
+    end
+
     template, params, resources = load_from_s3(@task.bucket)
     groups = autoscale_groups_from(resources)
 
@@ -301,6 +311,8 @@ class Cloud::Cycler::CFNStack
   # Scan a resource list for RDS instances
   def rds_instances_from(resources)
     instances = resources['AWS::RDS::DBInstance'] || []
+    return instances if resources['AWS::CloudFormation::Stack'].nil?
+
     resources['AWS::CloudFormation::Stack'].each do |substack, substack_resources|
       instances += rds_instances_from(substack_resources)
     end
