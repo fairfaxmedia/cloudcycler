@@ -44,6 +44,8 @@ class StubbedCFNStack < Cloud::Cycler::CFNStack
 end
 
 class TestCFNStack < Minitest::Test
+  # TODO: test scale_up/down, rds_snapshot_parameter, s3 save/load
+
   def test_safe_delete_stack
     test_cfn = StubbedCFNStack.new(MockTask.new(false), 'test-stack')
     stack = test_cfn.cf_stacks['test-stack']

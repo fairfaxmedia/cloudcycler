@@ -22,8 +22,8 @@ or have their autoscale groups set to 0 instances.
 
 ## Planned:
 
-* RDS support.
-* Run as a daemon?
+* RDS support
+* Run as a daemon
 * ccadm REST API
 
 Examples:

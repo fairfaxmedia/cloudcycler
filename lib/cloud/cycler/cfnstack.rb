@@ -152,6 +152,15 @@ class Cloud::Cycler::CFNStack
       return
     end
 
+    # TODO (2.1?) - Instead of relying on saving and loading the min/max instances it
+    # might be better to stop the scaling group processes and delete the
+    # attached ec2 instances.
+    # Scaling back up should then just be a matter of resuming the autoscaling processes.
+    #     group = autoscale.groups[id]
+    #     group.suspend_all_processes
+    #     group.ec2_instances.each {|instance| instance.terminate }
+    #     --
+    #     group.resume_all_processes
     @task.unsafe("Scaling down stack #{@name}") do
       save_to_s3
 
