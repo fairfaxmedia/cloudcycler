@@ -22,9 +22,9 @@ or have their autoscale groups set to 0 instances.
 
 ## Planned:
 
-* RDS support
-* Run as a daemon
+* Run as a daemon (will allow more fine-grained scheduling)
 * ccadm REST API
+* Better reporting
 
 Examples:
 
