@@ -129,6 +129,13 @@ class Cloud::Cycler::CFNStack
   # parameters, then deleting the stack.
   def delete
     if cf_stack.exists?
+      db_instances = rds_instances_from(cf_resources)
+      db_instances.each do |db_instance_id|
+        rds = AWS::RDS.new(:region => @task.region)
+        rds.instances[db_instance_id]
+        snapshot_id = Time.now.strftime("#{db_instance_id}-cc-%Y-%m-%d-%H-%M")
+        db_instance.create_snapshot(snapshot_id)
+      end
       @task.unsafe("Tearing down stack #{@name}") do
         save_to_s3(@task.bucket)
         cf_stack.delete
