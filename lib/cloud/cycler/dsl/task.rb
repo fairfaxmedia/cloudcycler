@@ -82,7 +82,7 @@ class Cloud::Cycler::DSL::Task
 
   # Select :delete or :scale_down as the default stop action. :delete will fall
   # back to scaling down anyway if certain checks fail.
-  def cf_action(action)
+  def cfn_action(action)
     @task.actions[:cfn] = action
   end
 end
