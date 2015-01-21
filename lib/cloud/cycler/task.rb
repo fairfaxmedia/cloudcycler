@@ -29,8 +29,6 @@ class Cloud::Cycler::Task
   attr_accessor :bucket_region
   attr_accessor :includes, :excludes
   attr_accessor :schedule
-  attr_accessor :cfn_action
-  attr_accessor :ec2_action
   attr_accessor :actions
   attr_accessor :rds_snapshot_parameter
 
