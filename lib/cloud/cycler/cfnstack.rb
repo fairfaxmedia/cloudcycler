@@ -123,6 +123,8 @@ class Cloud::Cycler::CFNStack
     @task.unsafe("Building stack #{@name}") do
       cf_stacks.create(@name, template, :parameters => params)
     end
+  rescue AWS::S3::Errors::NoSuchKey
+    @task.warn { "Cannot rebuild #{@name} - No details in S3" }
   end
 
   # Stopping a CloudFormation stack involves saving the template and
@@ -214,6 +216,8 @@ class Cloud::Cycler::CFNStack
         )
       end
     end
+  rescue AWS::S3::Errors::NoSuchKey
+    @task.warn { "Cannot scale up #{@name} - No details in S3" }
   end
 
   # Save template and parameters to an S3 bucket
