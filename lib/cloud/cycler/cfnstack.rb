@@ -174,6 +174,7 @@ class Cloud::Cycler::CFNStack
       save_to_s3(@task.bucket)
 
       autoscale = AWS::AutoScaling.new(:region => @task.region)
+      groups = autoscale_groups_from(cf_resources)
       groups.each do |id, params|
         group = autoscale.groups[id]
         group.update(:min_size => 0, :max_size => 0, :desired_capacity => 0)
