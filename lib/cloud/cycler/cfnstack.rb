@@ -171,7 +171,7 @@ class Cloud::Cycler::CFNStack
     #     --
     #     group.resume_all_processes
     @task.unsafe("Scaling down stack #{@name}") do
-      save_to_s3
+      save_to_s3(@task.bucket)
 
       autoscale = AWS::AutoScaling.new(:region => @task.region)
       groups.each do |id, params|
