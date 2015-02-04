@@ -281,7 +281,7 @@ class Cloud::Cycler::Task
       end
     end
 
-    stacks
+    stacks.reject {|s| s.include? 'child_of' }
   end
 
   def cfn_suspended_stacks
