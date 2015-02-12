@@ -173,6 +173,12 @@ class Cloud::Cycler::CFNStack
     @task.unsafe("Scaling down stack #{@name}") do
       save_to_s3(@task.bucket)
 
+      instances = ec2_instances_from(cf_resources)
+      instances.each do |instance_id|
+        instance = Cloud::Cycler::EC2Instance.new(@task, instance)
+        instance.stop
+      end
+
       autoscale = AWS::AutoScaling.new(:region => @task.region)
       groups = autoscale_groups_from(cf_resources)
       groups.each do |id, params|
