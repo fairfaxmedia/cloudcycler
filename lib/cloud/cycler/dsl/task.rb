@@ -85,4 +85,9 @@ class Cloud::Cycler::DSL::Task
   def cfn_action(action)
     @task.actions[:cfn] = action
   end
+  alias :cloudformation_action :cfn_action
+
+  def autoscaling_action(action)
+    @task.actions[:autoscaling] = action
+  end
 end

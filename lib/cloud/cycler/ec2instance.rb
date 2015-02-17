@@ -20,7 +20,7 @@ class Cloud::Cycler::EC2Instance
     elsif ec2_instance.status == :stopped
       @task.debug { "Instance #{@instance_id} already stopped" }
     else
-      @task.debug { "Cannot stop #{@instance_id} - instance is not running (status: #{instance.status})" }
+      @task.debug { "Cannot stop #{@instance_id} - instance is not running (status: #{ec2_instance.status})" }
     end
   rescue AWS::EC2::Errors::InvalidInstanceID => e
     err = Cloud::Cycler::TaskFailure.new(e.message)
@@ -35,7 +35,7 @@ class Cloud::Cycler::EC2Instance
     end
 
     if ec2_instance.status == :stopped
-      @task.unsafe("Stopping instance #{@instance_id}") do
+      @task.unsafe("Starting instance #{@instance_id}") do
         ec2_instance.start
       end
     elsif ec2_instance.status == :running

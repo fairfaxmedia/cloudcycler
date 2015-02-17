@@ -1,5 +1,7 @@
 require 'json'
 require 'cloud/cycler/namespace'
+require 'cloud/cycler/asgroup'
+require 'cloud/cycler/ec2instance'
 
 # Wrapper around AWS::CloudFormation. Provides a public interface compatible
 # with Cloud::Cycler::DSL::EC2Interface.
@@ -147,84 +149,32 @@ class Cloud::Cycler::CFNStack
     end
   end
 
-  def scaled_down?
-    groups = autoscale_groups_from(cf_resources)
-    groups.all? {|_, params| params.all? {|_, v| v == 0 } }
-  end
-
-  # Checks for any autoscale groups created by the stack, and changes their
-  # min/max instances to zero.
-  # TODO: Also stop standalone EC2 instances
+  # If it's not safe to delete/rebuild the stack, then scan the list of
+  # resources and stop them individually.
   def scale_down
-    if scaled_down?
-      @task.debug { "Stack #{@name} already scaled down" }
-      return
+    instances = ec2_instances_from(cf_resources)
+    instances.each do |instance_id|
+      Cloud::Cycler::EC2Instance.new(@task, instance_id).stop
     end
 
-    # TODO (2.1?) - Instead of relying on saving and loading the min/max instances it
-    # might be better to stop the scaling group processes and delete the
-    # attached ec2 instances.
-    # Scaling back up should then just be a matter of resuming the autoscaling processes.
-    #     group = autoscale.groups[id]
-    #     group.suspend_all_processes
-    #     group.ec2_instances.each {|instance| instance.terminate }
-    #     --
-    #     group.resume_all_processes
-    @task.unsafe("Scaling down stack #{@name}") do
-      save_to_s3(@task.bucket)
-
-      instances = ec2_instances_from(cf_resources)
-      instances.each do |instance_id|
-        instance = Cloud::Cycler::EC2Instance.new(@task, instance)
-        instance.stop
-      end
-
-      autoscale = AWS::AutoScaling.new(:region => @task.region)
-      groups = autoscale_groups_from(cf_resources)
-      groups.each do |id, params|
-        group = autoscale.groups[id]
-        group.update(:min_size => 0, :max_size => 0, :desired_capacity => 0)
-      end
+    autoscale = AWS::AutoScaling.new(:region => @task.region)
+    groups = autoscale_groups_from(cf_resources)
+    groups.each do |id, params|
+      Cloud::Cycler::ASGroup.new(@task, id).stop(@task.actions[:autoscaling])
     end
   end
 
-  # Checks for any autoscale groups created by the stack, and changes their
-  # min/max instances to zero.
-  # TODO: Also restart standalone EC2 instances
+  # Scan the list of stack resources, and make sure they are all started.
   def scale_up
-    if !scaled_down?
-      @task.debug { "Stack #{@name} already scaled up" }
-      return
+    instances = ec2_instances_from(cf_resources)
+    instances.each do |instance_id|
+      Cloud::Cycler::EC2Instance.new(@task, instance_id).start
     end
 
-    template, params, resources = load_from_s3(@task.bucket)
-    groups = autoscale_groups_from(resources)
-
-    groups.keys.each do |id|
-      params = groups[id]
-      if params['min_size'] != 0 || params['max_size'] != 0 || params['desired_capactity'] != 0
-        groups.delete(id)
-      end
+    groups = autoscale_groups_from(cf_resources)
+    groups.each do |id, params|
+      Cloud::Cycler::ASGroup.new(@task, id).start
     end
-
-    if groups.empty?
-      @task.debug { "Stack #{@name} already scaled up (noop)" }
-      return
-    end
-
-    @task.unsafe("Scaling up stack #{@name}") do
-      autoscale = AWS::AutoScaling.new(:region => @task.region)
-      groups.each do |id, params|
-        group = autoscale.groups[id]
-        group.update(
-          :min_size         => params['min_size'],
-          :max_size         => params['max_size'],
-          :desired_capacity => params['desired_capacity']
-        )
-      end
-    end
-  rescue AWS::S3::Errors::NoSuchKey
-    @task.warn { "Cannot scale up #{@name} - No details in S3" }
   end
 
   # Save template and parameters to an S3 bucket
