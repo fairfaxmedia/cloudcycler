@@ -5,6 +5,7 @@ require 'aws-sdk'
 require 'trollop'
 
 parser = Trollop::Parser.new do
+  # In hindsight having the command at the end seems weird
   text "Usage: #{$PROGRAM_NAME} <cfn|ec2> <id> [subcmd [args...]]"
 
   opt :config, 'Config file',
@@ -38,7 +39,6 @@ parser = Trollop::Parser.new do
     enable
       Reverse disabling of the resource
   }.rstrip
-
 end
 
 begin
