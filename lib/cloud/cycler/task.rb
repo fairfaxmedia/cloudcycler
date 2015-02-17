@@ -246,12 +246,10 @@ class Cloud::Cycler::Task
 
   def cfn_live_stacks
     links  = Hash.new {|h,k| h[k] = { 'src'   => [], 'dst'   => [] } }
-    stacks = Hash.new {|h,k| h[k] = { 'needs' => [], 'feeds' => [] } }
+    stacks = Hash.new {|h,k| h[k] = Hash.new {|_h,_k| _h[_k] = [] } }
 
     cfn = AWS::CloudFormation.new(:region => @region)
     cfn.stacks.each do |stack|
-       stacks[stack.name] = Hash.new {|h,k| h[k] = [] }
-
        stack.outputs.each do |output|
          links[output.value]['src'].push(stack.name)
        end
@@ -262,7 +260,8 @@ class Cloud::Cycler::Task
 
        stack.resources.each do |resource|
          if resource.resource_type == 'AWS::CloudFormation::Stack'
-           substack_name = resource.stack_name
+           substack_id = resource.physical_resource_id
+           substack_name = substack_id.split(':').last.split('/')[1]
            stacks[stack.name]['children'].push(substack_name)
            stacks[substack_name]['child_of'] = stack.name
          end
@@ -281,7 +280,12 @@ class Cloud::Cycler::Task
       end
     end
 
-    stacks.reject {|s| s.include? 'child_of' }
+    stacks.each_key do |name|
+      stacks[name]['feeds'].uniq!
+      stacks[name]['needs'].uniq!
+    end
+
+    stacks.reject {|_,s| s.include? 'child_of' }
   end
 
   def cfn_suspended_stacks
