@@ -10,6 +10,11 @@ class Cloud::Cycler::ASGroup
 
   # Restart any stopped instances, and resume autoscaling processes.
   def start
+    if !autoscaling_group.exists?
+      @task.warn { "Autoscaling group #{@name} doesn't exist" }
+      return
+    end
+
     if autoscaling_group.suspended_processes.empty?
       @task.debug { "Scaling group #{@name} already running" }
     else
@@ -24,6 +29,11 @@ class Cloud::Cycler::ASGroup
   # Suspend the autoscaling processes and either terminate or stop the EC2
   # instances under the autoscaling group.
   def stop(action)
+    if !autoscaling_group.exists?
+      @task.warn { "Autoscaling group #{@name} doesn't exist" }
+      return
+    end
+
     if autoscaling_group.suspended_processes.empty?
       @task.unsafe("Stopping #{@name} processes") do
         autoscaling_group.suspend_all_processes

@@ -23,7 +23,11 @@ class Cloud::Cycler::CFNStack
         rebuild
       end
     when :scale_down
-      scale_up
+      if !cf_stack.exists?
+        @task.warn { "#{@name} doesn't exist - cannot scale down" }
+      else
+        scale_up
+      end
     else
       raise Cloud::Cycler::TaskFailure.new("Unrecognised cloudformation action #{action}")
     end
