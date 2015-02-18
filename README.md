@@ -16,9 +16,14 @@ having to manage and/or deploy task files.
 
 ## Currently supported:
 
-EC2 and CloudFormation are currently supported. EC2 instances can be stopped
-and started, while CloudFormation stacks can be either destroyed and rebuilt,
-or have their autoscale groups set to 0 instances.
+EC2 instances can be stopped and started.
+
+Autoscaling groups have their processes suspended, and the underlying instances
+either terminated (default) or stopped.
+
+CloudFormation stacks can be deleted and rebuilt with the same template and
+parameters. Alternatively, the list of stack resources will be scanned, and the
+resources will be stopped/started individually.
 
 ## Planned:
 
