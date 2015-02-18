@@ -45,7 +45,7 @@ class Cloud::Cycler::ASGroup
   def terminate_instances
     autoscaling_instances.each do |instance|
       @task.unsafe("Terminating instance #{instance.instance_id}") do
-        instance.terminate
+        instance.ec2_instance.terminate
       end
     end
   end
@@ -57,7 +57,7 @@ class Cloud::Cycler::ASGroup
   def stop_instances
     autoscaling_instances.each do |instance|
       @task.unsafe("Stopping instance #{instance.instance_id}") do
-        instance.stop
+        instance.ec2_instance.stop
       end
     end
   end
@@ -65,11 +65,12 @@ class Cloud::Cycler::ASGroup
   # Restart any stopped EC2 instances under the autoscaling group.
   def start_instances
     autoscaling_instances.each do |instance|
-      next if !instance.exists?
+      ec2_instance = instance.ec2_instance
+      next if !ec2_instance.exists?
 
-      if instance.status == "stopped"
+      if ec2_instance.status == :stopped
         @task.unsafe("Starting instance #{instance.instance_id}") do
-          instance.start if instance.exists? && instance.status == "stopped"
+          ec2_instance.start
         end
       else
         @task.debug { "Instance #{instance.instance_id} already running" }
@@ -91,6 +92,6 @@ class Cloud::Cycler::ASGroup
 
   # AWS::EC2::Instance objects contained by the scaling group.
   def autoscaling_instances
-    autoscaling_group.auto_scaling_instances.map(&:ec2_instance)
+    autoscaling_group.auto_scaling_instances
   end
 end
