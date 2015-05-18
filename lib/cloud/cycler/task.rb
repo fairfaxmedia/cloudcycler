@@ -250,22 +250,24 @@ class Cloud::Cycler::Task
 
     cfn = AWS::CloudFormation.new(:region => @region)
     cfn.stacks.each do |stack|
-       stack.outputs.each do |output|
-         links[output.value]['src'].push(stack.name)
-       end
+      stacks[stack.name]
 
-       stack.parameters.each do |param, value|
-         links[value]['dst'].push(stack.name)
-       end
+      stack.outputs.each do |output|
+        links[output.value]['src'].push(stack.name)
+      end
 
-       stack.resources.each do |resource|
-         if resource.resource_type == 'AWS::CloudFormation::Stack'
-           substack_id = resource.physical_resource_id
-           substack_name = substack_id.split(':').last.split('/')[1]
-           stacks[stack.name]['children'].push(substack_name)
-           stacks[substack_name]['child_of'] = stack.name
-         end
-       end
+      stack.parameters.each do |param, value|
+        links[value]['dst'].push(stack.name)
+      end
+
+      stack.resources.each do |resource|
+        if resource.resource_type == 'AWS::CloudFormation::Stack'
+          substack_id = resource.physical_resource_id
+          substack_name = substack_id.split(':').last.split('/')[1]
+          stacks[stack.name]['children'].push(substack_name)
+          stacks[substack_name]['child_of'] = stack.name
+        end
+      end
     end
     deps = links.reject {|value, data| data['src'].empty? || data['dst'].empty? }
 
