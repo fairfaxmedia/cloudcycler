@@ -101,9 +101,15 @@ class Cloud::Cycler::Task
         if attrs.has_key? 'schedule'
           item_schedule = Cloud::Cycler::Schedule.parse(attrs['schedule'])
         end
-        item_disabled = attrs['status'] == 'disabled' if attrs.has_key? 'status'
 
-        if item_disabled
+        if attrs.has_key? 'status'
+          item_disabled = attrs['status'] == 'disabled'
+          item_excluded = attrs['status'] == 'excluded'
+        end
+
+        if item_excluded
+          next
+        elsif item_disabled
           debug { "#{type}:#{id} disabled - skipping" }
         elsif item_schedule.nil?
           warn { "#{type}:#{id} has no schedule - cannot process" }
