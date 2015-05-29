@@ -46,7 +46,7 @@ begin
 rescue Trollop::HelpNeeded
   parser.educate
   exit
-rescue Trollop::CommandLineError => e
+rescue Trollop::CommandlineError => e
   puts e
   parser.educate
   exit 1
