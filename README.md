@@ -14,7 +14,7 @@ A `ccadm` utility is provided to control per-resource settings, which overrides
 task level settings. This way, resources can be rescheduled or excluded without
 having to manage and/or deploy task files.
 
-## Currently supported:
+## Currently supported
 
 EC2 instances can be stopped and started.
 
@@ -25,21 +25,24 @@ CloudFormation stacks can be deleted and rebuilt with the same template and
 parameters. Alternatively, the list of stack resources will be scanned, and the
 resources will be stopped/started individually.
 
-## Planned:
+## Planned
 
 * Run as a daemon (will allow more fine-grained scheduling)
 * ccadm REST API
 * Better reporting
 
-Examples:
+## Examples
 
+```ruby
 task 'cycle-some-resource' do
   schedule 'MTWTF-- 0800-1800'
 
   cloudformation\_include /-dev$/
   cloudformation\_exclude /fragile-dev$/
 end
+```
 
+```
 $ ccadm -r ap-southeast-2 cfn mystack-dev
 cfn:mystack-dev uses the default schedule
 $ ccadm -r ap-southeast-2 cfn mystack-dev schedule "MTWTF-- 0600-2000"
@@ -49,3 +52,4 @@ cfn:mystack-dev will be ignored by cloudcycler
   Schedule will be MTWTF-- 0600-2000 if re-enabled
 $ ccadm -r ap-southeast-2 cfn mystack-dev reset
 cfn:mystack-dev will now be included in the default schedule
+```
