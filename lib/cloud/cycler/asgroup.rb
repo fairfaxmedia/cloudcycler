@@ -74,6 +74,7 @@ class Cloud::Cycler::ASGroup
 
   # Restart any stopped EC2 instances under the autoscaling group.
   def start_instances
+    started = 0
     autoscaling_instances.each do |instance|
       ec2_instance = instance.ec2_instance
       next if !ec2_instance.exists?
@@ -81,11 +82,24 @@ class Cloud::Cycler::ASGroup
       if ec2_instance.status == :stopped
         @task.unsafe("Starting instance #{instance.instance_id}") do
           ec2_instance.start
+          started += 1
         end
       else
         @task.debug { "Instance #{instance.instance_id} already running" }
       end
     end
+
+    # FIXME
+    # This is to give instances a little more time to start up and become
+    # healthy before restarting autoscaling processes.
+    # If an instance isn't started and healthy in time, the autoscale will kill
+    # it for being unhealthy.
+    #
+    # The "right" way to do it would be to actually poll the instances until
+    # they are healthy (or a timeout is reached). With the current task model,
+    # other actions are blocked while this is waiting, so I can't afford to
+    # wait too long.
+    sleep 30 if started > 0
   end
 
   private
