@@ -91,6 +91,39 @@ $ ccadm -r ap-southeast-2 cfn mystack-dev reset
 cfn:mystack-dev will now be included in the default schedule
 ```
 
+For more information on how to use the `cloudcycler` utility, type `cloudcycler --help` in your console.
+
+To use the `cloudcycler` utility:
+
+```
+$ cloudcycler -r ap-southeast-2
+```
+
+### Cloudcycler config file
+
+The `cloudcycler` utility can read configuration from a YAML file.
+
+* `region` - default AWS region
+* `log-file` - file to log to
+* `bucket-name` - default S3 bucket
+* `bucket-prefix` - prefix (folder) for S3 objects
+* `bucket-region` - region for S3 bucket
+* `task-file` - task file
+* `take-directory` - task directory
+
+### Schedule syntax
+
+e.g. Schedule to be on between 08:00 and 18:00 Monday to Friday
+
+```
+MTWTF-- 0800-1800
+```
+
+* `MTWTFSS` will toggle the day on
+* `-` or any other charcter will toggle the day off
+* Start and stop times are in 24-hour format
+* Dates/times are based on your local timezone
+
 ## Using the DSL
 
 ```ruby
@@ -108,28 +141,89 @@ Use the `cloudcycler` utility to run your task files.
 $ cloudcycler -r ap-southeast-2 -b bucket-name -f task_file.rb
 ```
 
-## Schedule syntax
+### Global options
 
-e.g. Schedule to be on between 08:00 and 18:00 Monday to Friday
+The following options can be declared directly inside a task file.
 
-```
-MTWTF-- 0800-1800
-```
+#### default_bucket
 
-* `MTWTFSS` will toggle the day on
-* `-` or any other charcter will toggle the day off
-* Start and stop times are in 24-hour format
-* Dates/times are based on your local timezone
+Sets the default S3 bucket to store configuration files, etc.
 
-## Cloudcycler config file
+This can also be defined in `task` blocks.
 
-The `cloudcycler` utility can read configuration from a YAML file.
+#### default_bucket_prefix
 
-* `region` - default AWS region
-* `log-file` - file to log to
-* `bucket-name` - default S3 bucket
-* `bucket-prefix` - prefix (folder) for S3 objects
-* `bucket-region` - region for S3 bucket
-* `task-file` - task file
-* `take-directory` - task directory
+Default prefix (i.e. folder) to prepend to S3 object names.
+
+#### default_bucket_region
+
+Default region for S3 buckets, if different from the region being cycled.
+
+#### dryrun!
+
+Sets the application to dry-run mode.
+
+#### log_to
+
+Changes the logger. May be any type accepted by `Logger::new` (i.e. a
+filename, `String`, or `IO`).
+
+#### task
+
+See [Tasks](#tasks) below.
+
+### Tasks
+
+Use a `task` block to define a task.
+
+#### region
+
+Overwrite the default region provided outside of the `task` block.
+
+#### bucket
+
+Overwrite the default S3 bucket provided outside of the `task` block.
+
+#### bucket_prefix
+
+Overwrite the default S3 bucket prefix provided outside of the `task` block.
+
+#### bucket_region
+
+Overwrite the default S3 bucket prefix provided outside of the `task` block.
+
+#### ec2_include
+
+An `Array` of EC2 instances by instance ID to be cycled.
+
+#### ec2_exclude
+
+Blacklist EC2 instances to be excluded from pattern matching.
+
+#### cloudformation_include
+
+An `Array` of CloudFormation stacks by stack name to be cycled.
+
+#### cloudformation_exclude
+
+Blacklist Cloudformation stacks to be excluded from pattern matching.
+
+#### schedule
+
+See [Schedule syntax](#schedule-syntax) for usage.
+
+#### ec2_action
+
+_(Currently Cloudcycler only supports stop/start action right now)._
+
+#### cfn_action
+
+Available options are:
+
+* `:delete` - deletes and re-creates the stack. Fails down to `:scale_down` if certain checks fail
+* `:scale_down` - 
+
+#### autoscaling_action
+
+_(Current Cloudcycler only supports suspend/resume action right now)._
 
