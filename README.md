@@ -31,7 +31,67 @@ resources will be stopped/started individually.
 * ccadm REST API
 * Better reporting
 
-## Examples
+## Install
+
+Add the following to a Gemfile:
+
+```ruby
+sources 'https://rubygems.org'
+
+gem 'cloudcycler', git: 'https://github.com/fairfaxmedia/cloudcycler.git'
+```
+
+And then run `bundle install`
+
+### Create a DynamoDB table
+
+A DynamoDB is used to store schedules created by the `ccadm` utility. These 
+schedules are read by the `cloudcycler` utility.
+
+Create a DynamoDB table called `cloudcycler` with a Hash Key called `name`.
+
+### Create an S3 bucket
+
+An S3 bucket is needed to store configuration about CloudFormation stacks. The
+configuration is used when restoring a CloudFormation stack that was previously
+scaled down.
+
+The bucket can have any name but must be supplied to the `cloudcycler` utility.
+
+## Basic usage
+
+For more information on how to use the `ccadm` utility, type `ccadm --help` in your console.
+
+To check the schedule of a CloudFormation stack:
+
+```
+$ ccadm -r ap-southeast-2 cfn mystack-dev
+cfn:mystack-dev uses the default schedule
+```
+
+To change the schedule of a stack:
+
+```
+$ ccadm -r ap-southeast-2 cfn mystack-dev schedule "MTWTF-- 0600-2000"
+cfn:mystack-dev now has the schedule MTWTF-- 0600-2000
+```
+
+To exclude certain stacks from a schedule:
+
+```
+$ ccadm -r ap-southeast-2 cfn mystack-dev exclude
+cfn:mystack-dev will be ignored by cloudcycler
+  Schedule will be MTWTF-- 0600-2000 if re-enabled
+```
+
+To reset a stack to the default schedule (do not cycle):
+
+```
+$ ccadm -r ap-southeast-2 cfn mystack-dev reset
+cfn:mystack-dev will now be included in the default schedule
+```
+
+## Using the DSL
 
 ```ruby
 task 'cycle-some-resource' do
@@ -42,14 +102,34 @@ task 'cycle-some-resource' do
 end
 ```
 
+Use the `cloudcycler` utility to run your task files.
+
 ```
-$ ccadm -r ap-southeast-2 cfn mystack-dev
-cfn:mystack-dev uses the default schedule
-$ ccadm -r ap-southeast-2 cfn mystack-dev schedule "MTWTF-- 0600-2000"
-cfn:mystack-dev now has the schedule MTWTF-- 0600-2000
-$ ccadm -r ap-southeast-2 cfn mystack-dev exclude
-cfn:mystack-dev will be ignored by cloudcycler
-  Schedule will be MTWTF-- 0600-2000 if re-enabled
-$ ccadm -r ap-southeast-2 cfn mystack-dev reset
-cfn:mystack-dev will now be included in the default schedule
+$ cloudcycler -r ap-southeast-2 -b bucket-name -f task_file.rb
 ```
+
+## Schedule syntax
+
+e.g. Schedule to be on between 08:00 and 18:00 Monday to Friday
+
+```
+MTWTF-- 0800-1800
+```
+
+* `MTWTFSS` will toggle the day on
+* `-` or any other charcter will toggle the day off
+* Start and stop times are in 24-hour format
+* Dates/times are based on your local timezone
+
+## Cloudcycler config file
+
+The `cloudcycler` utility can read configuration from a YAML file.
+
+* `region` - default AWS region
+* `log-file` - file to log to
+* `bucket-name` - default S3 bucket
+* `bucket-prefix` - prefix (folder) for S3 objects
+* `bucket-region` - region for S3 bucket
+* `task-file` - task file
+* `take-directory` - task directory
+
