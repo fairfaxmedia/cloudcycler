@@ -37,8 +37,8 @@ resources will be stopped/started individually.
 task 'cycle-some-resource' do
   schedule 'MTWTF-- 0800-1800'
 
-  cloudformation\_include /-dev$/
-  cloudformation\_exclude /fragile-dev$/
+  cloudformation_include /-dev$/
+  cloudformation_exclude /fragile-dev$/
 end
 ```
 
