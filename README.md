@@ -223,15 +223,23 @@ _(Currently Cloudcycler only supports stop/start action right now)._
 Available options are:
 
 * `:delete` - saves data about the stack and then deletes it. Fails down to `:scale_down` if certain checks fail
-* `:scale_down` - suspends auto-scaling groups and stops EC2 instances within the stack
+* `:scale_down` - cycles supported resources created by the stack individually.
 
 The `:delete` action will check the following conditions are met before deleting a stack:
 
+* The stack does not appear to be linked to another stack (stack output matches an input parameter of another stack)
+* The stack is not created by another stack
+* The stack contains no static (non-autoscaled) EC2 instances.
 * Multiple DB instances (RDS snapshot not supported for multiple DB instances)
 * `rds_snapshot_parameter` must be defined if DB instances are present
 * CloudFormation template must accept the value supplied for `rds_snapshot_parameter`
 
 #### autoscaling_action
 
-_(Current Cloudcycler only supports suspend/resume action right now)._
+Available options are:
 
+* `:terminate` - Instances in the autoscaling group are terminated after stopping the autoscaling processes
+* `:stop` - Instances in the autoscaling group are stopped after stopping the autoscaling process
+
+Note: When using the :stop option, it is possible that the instances will fail
+to startup and become healthy before the autoscaling group terminates them.
