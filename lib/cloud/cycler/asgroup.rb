@@ -70,6 +70,9 @@ class Cloud::Cycler::ASGroup
   def stop_instances
     autoscaling_instances.each do |instance|
       @task.unsafe("Stopping instance #{instance.instance_id}") do
+        load_balancers.each do |elb|
+          elb.instances.deregister(instance.instance_id)
+        end
         instance.ec2_instance.stop
       end
     end
@@ -85,6 +88,9 @@ class Cloud::Cycler::ASGroup
       if ec2_instance.status == :stopped
         @task.unsafe("Starting instance #{instance.instance_id}") do
           ec2_instance.start
+          load_balancers.each do |elb|
+            elb.instances.register(instance.instance_id)
+          end
           started += 1
         end
       else
@@ -120,5 +126,9 @@ class Cloud::Cycler::ASGroup
   # AWS::EC2::Instance objects contained by the scaling group.
   def autoscaling_instances
     autoscaling_group.auto_scaling_instances
+  end
+
+  def load_balancers
+    autoscaling_group.load_balancers
   end
 end
