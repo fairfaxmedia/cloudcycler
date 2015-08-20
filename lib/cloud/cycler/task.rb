@@ -217,7 +217,7 @@ class Cloud::Cycler::Task
     return @ec2_cache if defined? @ec2_cache
 
     @ec2_cache = {}
-    ec2 = AWS::CloudFormation.new(:region => @region)
+    ec2 = AWS::EC2.new(:region => @region)
     ec2.instances.each do |instance|
       @ec2_cache[instance.name] = instance.id
     end
