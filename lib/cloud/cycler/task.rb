@@ -76,10 +76,10 @@ class Cloud::Cycler::Task
         end
       end
     when :ec2
-      ec2_cache.each do |instance_name, instance_id|
-        next if excluded?(type, instance_name)
-        if id === instance_name
-          @includes[type].push(instance_name)
+      ec2_cache.each do |instance_id|
+        next if excluded?(type, instance_id)
+        if id === instance_id
+          @includes[type].push(instance_id)
         end
       end
     else
@@ -216,13 +216,8 @@ class Cloud::Cycler::Task
   def ec2_cache
     return @ec2_cache if defined? @ec2_cache
 
-    @ec2_cache = {}
     ec2 = AWS::EC2.new(:region => @region)
-    ec2.instances.each do |instance|
-      @ec2_cache[instance.name] = instance.id
-    end
-
-    @ec2_cache
+    @ec2_cache = ec2.instances.map(&:id)
   end
 
   # Scans a list of active cloudformation stacks, and also a list of stacks
