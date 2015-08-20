@@ -15,7 +15,7 @@ class Cloud::Cycler::CFNStack
   # This will rebuild a stack or scale one back up, as necessary
   def start(action)
     case action
-    when :default, :start
+    when :default, :start, :terminate
       if cf_stack.exists?
         @task.debug { "#{@name} already started - checking scale up" }
         scale_up
@@ -43,7 +43,7 @@ class Cloud::Cycler::CFNStack
     end
 
     case action
-    when :default, :stop
+    when :default, :stop, :terminate
       if rebuild_safe?
         delete
       else
