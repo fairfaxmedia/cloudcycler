@@ -8,7 +8,7 @@ class Cloud::Cycler::EC2Instance
   end
 
   # Shut down the ec2 instance
-  def stop
+  def stop(action = :default)
     unless ec2_instance.exists?
       raise Cloud::Cycler::TaskFailure.new("EC2 instance '#{@instance_id}' does not exist")
     end
@@ -29,7 +29,7 @@ class Cloud::Cycler::EC2Instance
   end
 
   # Start the ec2 instance
-  def start
+  def start(action = :default)
     unless ec2_instance.exists?
       raise Cloud::Cycler::TaskFailure.new("EC2 instance '#{@instance_id}' does not exist")
     end
