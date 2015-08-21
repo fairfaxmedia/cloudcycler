@@ -14,10 +14,12 @@ class Cloud::Cycler::CFNStack
   # Start the stack (if necessary)
   # This will rebuild a stack or scale one back up, as necessary
   def start(action)
-    status = cf_stack.status
-    if status =~ /_FAILED$/
-      @task.warn { "Ignoring stack #{@name} - status is #{status}" }
-      return
+    if cf_stack.exists?
+      status = cf_stack.status
+      if status =~ /_FAILED$/
+        @task.warn { "Ignoring stack #{@name} - status is #{status}" }
+        return
+      end
     end
 
     case action
