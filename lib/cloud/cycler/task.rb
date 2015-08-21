@@ -122,6 +122,8 @@ class Cloud::Cycler::Task
         end
       end
     end
+  rescue StandardError => e
+    raise Cloud::Cycler::TaskFailure.new("(#{e.class} #{e.message}")
   end
 
   # Runs the block only if the application is NOT in dryrun mode.
