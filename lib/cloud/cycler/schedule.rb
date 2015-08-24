@@ -74,7 +74,7 @@ class Cloud::Cycler::Schedule
     now = Time.now
     today = now.to_date
 
-    return false if !@days[today.cwday-1] 
+    return false if !@days[today.cwday-1]
 
     start = Time.new(now.year, now.month, now.day, @start_hr, @start_min)
     stop  = Time.new(now.year, now.month, now.day, @stop_hr, @stop_min)
