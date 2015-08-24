@@ -78,6 +78,12 @@ class Cloud::Cycler::Schedule
 
     start = Time.new(now.year, now.month, now.day, @start_hr, @start_min)
     stop  = Time.new(now.year, now.month, now.day, @stop_hr, @stop_min)
+    # If the stop time is before the start time, it's probably because the stop
+    # time is set to say 02:00. In this case, move the stop time forward to
+    # tomorrow.
+    if stop < start
+      stop += 86400
+    end
 
     now.between?(start, stop)
   end
