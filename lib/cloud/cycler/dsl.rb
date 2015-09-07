@@ -27,6 +27,10 @@ class Cloud::Cycler::DSL
     @cycler.bucket_region = region
   end
 
+  def aws_max_retries(n)
+    @cycler.aws_max_retries = n
+  end
+
   # Sets the application to dryrun mode.
   # Tasks check this value before running #unsafe blocks.
   def dryrun!

@@ -24,6 +24,7 @@ class Cloud::Cycler::Task
   attr_reader :cycler, :name
 
   attr_accessor :region
+  attr_accessor :aws_max_retries
   attr_accessor :bucket
   attr_accessor :bucket_prefix
   attr_accessor :bucket_region
@@ -33,12 +34,13 @@ class Cloud::Cycler::Task
   attr_accessor :rds_snapshot_parameter
 
   def initialize(cycler, name)
-    @name          = name
-    @cycler        = cycler
-    @region        = cycler.region
-    @bucket        = cycler.bucket
-    @bucket_prefix = cycler.bucket_prefix
-    @bucket_region = cycler.bucket_region
+    @name            = name
+    @cycler          = cycler
+    @region          = cycler.region
+    @aws_max_retries = cycler.aws_max_retries
+    @bucket          = cycler.bucket
+    @bucket_prefix   = cycler.bucket_prefix
+    @bucket_region   = cycler.bucket_region
 
     @includes = Hash.new {|h,k| h[k] = []}
     @excludes = Hash.new {|h,k| h[k] = []}
@@ -47,6 +49,13 @@ class Cloud::Cycler::Task
 
   def logger
     @cycler.logger
+  end
+
+  def aws_config
+    {
+      :region      => @region,
+      :max_retries => @aws_max_retries,
+    }.select {|k,v| !v.nil? }
   end
 
   # Add an exclude rule to the list. Exclude object should usually be a String
@@ -90,6 +99,7 @@ class Cloud::Cycler::Task
   # Process each of the included resources. Looks for settings in dynamodb
   # which overwrite the task settings.
   def run
+    info { "Starting task: #{@name}" }
     @includes.each do |type, ids|
       klass = TYPES[type]
       raise Cloud::Cycler::TaskFailure.new("Unknown type #{type}") if klass.nil?
@@ -108,6 +118,7 @@ class Cloud::Cycler::Task
         end
 
         if item_excluded
+          debug { "#{type}:#{id} exluded - skipping" }
           next
         elsif item_disabled
           debug { "#{type}:#{id} disabled - skipping" }
@@ -177,7 +188,7 @@ class Cloud::Cycler::Task
   end
 
   def s3_object(suffix)
-    @s3        ||= AWS::S3.new(:region => @region)
+    @s3        ||= AWS::S3.new(aws_config)
     @s3_bucket ||= @s3.buckets[@bucket]
 
     unless @s3_bucket.exists?
@@ -198,7 +209,7 @@ class Cloud::Cycler::Task
 
   # Lookup per resource settings from DynamoDB
   def ddb_attrs(type, id)
-    @ddb       ||= AWS::DynamoDB.new(:region => @region)
+    @ddb       ||= AWS::DynamoDB.new(aws_config)
 
     if !defined? @ddb_table
       @ddb_table = @ddb.tables['cloudcycler'] # FIXME - don't hardcode names
@@ -218,7 +229,7 @@ class Cloud::Cycler::Task
   def ec2_cache
     return @ec2_cache if defined? @ec2_cache
 
-    ec2 = AWS::EC2.new(:region => @region)
+    ec2 = AWS::EC2.new(aws_config)
     @ec2_cache = ec2.instances.map(&:id)
   end
 
@@ -251,7 +262,7 @@ class Cloud::Cycler::Task
     links  = Hash.new {|h,k| h[k] = { 'src'   => [], 'dst'   => [] } }
     stacks = Hash.new {|h,k| h[k] = Hash.new {|_h,_k| _h[_k] = [] } }
 
-    cfn = AWS::CloudFormation.new(:region => @region)
+    cfn = AWS::CloudFormation.new(aws_config)
     cfn.stacks.each do |stack|
       stacks[stack.name]
 
@@ -294,7 +305,7 @@ class Cloud::Cycler::Task
   end
 
   def cfn_suspended_stacks
-    s3 = AWS::S3.new(:region => @region)
+    s3 = AWS::S3.new(aws_config)
     bucket = s3.buckets[@bucket]
 
     stacks = []

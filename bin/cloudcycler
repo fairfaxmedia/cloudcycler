@@ -67,6 +67,11 @@ Cloud::Cycler.run(region) do
     default_bucket_region bucket_region
   end
 
+  max_retries = opts[:aws_max_retries] || config['aws-max-retries'] || 5
+  if max_retries
+    aws_max_retries max_retries
+  end
+
   if opts[:dryrun]
     dryrun!
   end

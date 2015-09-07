@@ -106,7 +106,7 @@ class Cloud::Cycler::ASGroup
 
   # AWS::AutoScaling object
   def aws_autoscaling
-    @aws_autoscaling ||= AWS::AutoScaling.new(:region => @task.region)
+    @aws_autoscaling ||= AWS::AutoScaling.new(@task.aws_config)
   end
 
   # AWS::AutoScaling::Group object

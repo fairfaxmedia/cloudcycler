@@ -153,7 +153,7 @@ class Cloud::Cycler::CFNStack
     if cf_stack.exists?
       db_instances = rds_instances_from(cf_resources)
       db_instances.each do |db_instance_id|
-        rds = AWS::RDS.new(:region => @task.region)
+        rds = AWS::RDS.new(@task.aws_config)
         rds.instances[db_instance_id]
         snapshot_id = Time.now.strftime("#{db_instance_id}-cc-%Y-%m-%d-%H-%M")
         db_instance.create_snapshot(snapshot_id)
@@ -175,7 +175,7 @@ class Cloud::Cycler::CFNStack
       Cloud::Cycler::EC2Instance.new(@task, instance_id).stop
     end
 
-    autoscale = AWS::AutoScaling.new(:region => @task.region)
+    autoscale = AWS::AutoScaling.new(@task.aws_config)
     groups = autoscale_groups_from(cf_resources)
     groups.each do |id, params|
       Cloud::Cycler::ASGroup.new(@task, id).stop(@task.actions[:autoscaling])
@@ -223,7 +223,7 @@ class Cloud::Cycler::CFNStack
 
   # Find the latest RDS snapshot taken from a given DB instance name
   def latest_rds_snapshot_of(db_instance_id)
-    rds = AWS::RDS.new(:region => @task.region)
+    rds = AWS::RDS.new(@task.aws_config)
     candidate = nil
     rds.snapshots.each do |snap|
       next unless snap.db_instance_id == db_instance_id
@@ -244,7 +244,7 @@ class Cloud::Cycler::CFNStack
   def cf_stacks
     return @cf_stacks if defined? @cf_stacks
 
-    cf = AWS::CloudFormation.new(:region => @task.region)
+    cf = AWS::CloudFormation.new(@task.aws_config)
     @cf_stacks = cf.stacks
   end
 
@@ -288,7 +288,7 @@ class Cloud::Cycler::CFNStack
         substack = cf_stacks[id]
         resources['AWS::CloudFormation::Stack'][substack.name] = cf_resources_of(substack)
       elsif type == 'AWS::AutoScaling::AutoScalingGroup'
-        autoscale = AWS::AutoScaling.new(:region => @task.region)
+        autoscale = AWS::AutoScaling.new(@task.aws_config)
         scale_group = autoscale.groups[id]
         resources['AWS::AutoScaling::AutoScalingGroup'][id] = {
           :min_size         => scale_group.min_size,
@@ -336,7 +336,7 @@ class Cloud::Cycler::CFNStack
   def s3_bucket
     return @s3_bucket if defined? @s3_bucket
 
-    s3 = AWS::S3.new(:region => @task.region)
+    s3 = AWS::S3.new(@task.aws_config)
     @s3_bucket = s3.buckets[@task.bucket]
   end
 

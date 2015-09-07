@@ -54,7 +54,7 @@ class Cloud::Cycler::EC2Instance
   # Memoization for AWS::EC2::InstanceCollection
   def ec2_instances
     return @ec2_instances if defined? @ec2_instances
-    ec2 = AWS::EC2.new(:region => @task.region)
+    ec2 = AWS::EC2.new(@task.aws_config)
     @ec2_instances = ec2.instances
   end
 
