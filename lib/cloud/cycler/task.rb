@@ -286,7 +286,6 @@ class Cloud::Cycler::Task
     # filter for any stack names which have are a prefix of another stack name,
     # we can trim down the number of API requests quite a bit.
     stack_names = stacks.keys.sort
-    require 'pry'; binding.pry
     0.upto(stack_names.size - 2) do |i|
       stack_name = stack_names[i]
       y = stack_names[i+1]
