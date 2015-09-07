@@ -264,6 +264,7 @@ class Cloud::Cycler::Task
 
     cfn_stack_descriptions.each do |stack|
       stack_name = stack.fetch(:stack_name)
+
       stacks[stack_name]
 
       stack.fetch(:outputs).each do |output|
@@ -280,16 +281,29 @@ class Cloud::Cycler::Task
         links[value]['dst'].push(stack_name)
       end
 
-      cfn_stack_resources(stack_name).each do |resource|
-        next unless resource.fetch(:resource_type) == 'AWS::CloudFormation::Stack'
+    end
+    # Child stacks are automatically named after their parent. If we do a quick
+    # filter for any stack names which have are a prefix of another stack name,
+    # we can trim down the number of API requests quite a bit.
+    stack_names = stacks.keys.sort
+    require 'pry'; binding.pry
+    0.upto(stack_names.size - 2) do |i|
+      stack_name = stack_names[i]
+      y = stack_names[i+1]
 
-        substack_id   = resource.fetch(:physical_resource_id)
-        substack_name = substack_id.split(':').last.split('/')[1]
+      if y.start_with?(stack_name)
+        cfn_stack_resources(stack_name).each do |resource|
+          next unless resource.fetch(:resource_type) == 'AWS::CloudFormation::Stack'
 
-        stacks[stack_name]['children'].push(substack_name)
-        stacks[substack_name]['child_of'] = stack_name
+          substack_id   = resource.fetch(:physical_resource_id)
+          substack_name = substack_id.split(':').last.split('/')[1]
+
+          stacks[stack_name]['children'].push(substack_name)
+          stacks[substack_name]['child_of'] = stack_name
+        end
       end
     end
+
     deps = links.reject {|value, data| data['src'].empty? || data['dst'].empty? }
 
     deps.delete(nil) # TODO - Figure out where these come from
