@@ -262,25 +262,32 @@ class Cloud::Cycler::Task
     links  = Hash.new {|h,k| h[k] = { 'src'   => [], 'dst'   => [] } }
     stacks = Hash.new {|h,k| h[k] = Hash.new {|_h,_k| _h[_k] = [] } }
 
-    cfn = AWS::CloudFormation.new(aws_config)
-    cfn.stacks.each do |stack|
-      stacks[stack.name]
+    cfn_stack_descriptions.each do |stack|
+      stack_name = stack.fetch(:stack_name)
+      stacks[stack_name]
 
-      stack.outputs.each do |output|
-        links[output.value]['src'].push(stack.name)
+      stack.fetch(:outputs).each do |output|
+        key   = output.fetch(:output_key)
+        value = output.fetch(:output_value)
+
+        links[value]['src'].push(stack_name)
       end
 
-      stack.parameters.each do |param, value|
-        links[value]['dst'].push(stack.name)
+      stack.fetch(:parameters).each do |parameter|
+        key   = parameter.fetch(:parameter_key)
+        value = parameter.fetch(:parameter_value)
+
+        links[value]['dst'].push(stack_name)
       end
 
-      stack.resources.each do |resource|
-        if resource.resource_type == 'AWS::CloudFormation::Stack'
-          substack_id = resource.physical_resource_id
-          substack_name = substack_id.split(':').last.split('/')[1]
-          stacks[stack.name]['children'].push(substack_name)
-          stacks[substack_name]['child_of'] = stack.name
-        end
+      cfn_stack_resources(stack_name).each do |resource|
+        next unless resource.fetch(:resource_type) == 'AWS::CloudFormation::Stack'
+
+        substack_id   = resource.fetch(:physical_resource_id)
+        substack_name = substack_id.split(':').last.split('/')[1]
+
+        stacks[stack_name]['children'].push(substack_name)
+        stacks[substack_name]['child_of'] = stack_name
       end
     end
     deps = links.reject {|value, data| data['src'].empty? || data['dst'].empty? }
@@ -322,5 +329,31 @@ class Cloud::Cycler::Task
       stacks.push(folders[1])
     end
     stacks.sort.uniq
+  end
+
+  private
+
+  def cfn_client
+    @cfn_client ||= AWS::CloudFormation::Client.new(aws_config)
+  end
+
+  def cfn_stack_descriptions(opts = {})
+    descriptions = []
+
+    resp = cfn_client.describe_stacks(opts)
+    descriptions = resp[:stacks]
+
+    if resp[:next_token]
+      descriptions += cfn_stack_descriptions(:next_token => resp[:next_token])
+    end
+
+    descriptions
+  end
+
+  def cfn_stack_resources(stack_name)
+    descriptions = []
+
+    resp = cfn_client.describe_stack_resources(:stack_name => stack_name)
+    resp.fetch(:stack_resources)
   end
 end
