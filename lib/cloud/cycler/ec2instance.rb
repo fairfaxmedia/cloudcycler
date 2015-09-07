@@ -13,14 +13,14 @@ class Cloud::Cycler::EC2Instance
       raise Cloud::Cycler::TaskFailure.new("EC2 instance '#{@instance_id}' does not exist")
     end
 
-    if ec2_instance.status == :running
+    if status == :running
       @task.unsafe("Stopping instance #{@instance_id}") do
         ec2_instance.stop
       end
-    elsif ec2_instance.status == :stopped
+    elsif status == :stopped
       @task.debug { "Instance #{@instance_id} already stopped" }
     else
-      @task.debug { "Cannot stop #{@instance_id} - instance is not running (status: #{ec2_instance.status})" }
+      @task.debug { "Cannot stop #{@instance_id} - instance is not running (status: #{status})" }
     end
   rescue AWS::EC2::Errors::InvalidInstanceID => e
     err = Cloud::Cycler::TaskFailure.new(e.message)
@@ -34,22 +34,26 @@ class Cloud::Cycler::EC2Instance
       raise Cloud::Cycler::TaskFailure.new("EC2 instance '#{@instance_id}' does not exist")
     end
 
-    if ec2_instance.status == :stopped
+    if status == :stopped
       @task.unsafe("Starting instance #{@instance_id}") do
         ec2_instance.start
       end
-    elsif ec2_instance.status == :running
+    elsif status == :running
       @task.debug { "Instance #{@instance_id} already running" }
     else
-      @task.debug { "Cannot start #{@instance_id} - instance is not stopped (status: #{ec2_instance.status})" }
+      @task.debug { "Cannot start #{@instance_id} - instance is not stopped (status: #{status})" }
     end
   end
 
   def started?
-    ec2_instance.status == :running
+    status == :running
   end
 
   private
+
+  def status
+    @ec2_status ||= ec2_instance.status
+  end
 
   # Memoization for AWS::EC2::InstanceCollection
   def ec2_instances
