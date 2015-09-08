@@ -246,9 +246,8 @@ class Cloud::Cycler::Task
     cache_object = s3_object("cfn_stacks.json")
     if cache_object.exists? && Time.now - cache_object.last_modified < CFN_CACHE_SECONDS
       @cfn_cache = JSON.parse(cache_object.read)
+      return (@cfn_cache['live'].keys + @cfn_cache['saved']).uniq
     end
-
-    return (@cfn_cache['live'].keys + @cfn_cache['saved']).uniq if defined? @cfn_cache
 
     @cfn_cache = {}
     @cfn_cache['live']  = cfn_live_stacks
@@ -259,7 +258,7 @@ class Cloud::Cycler::Task
   end
 
   def cfn_live_stacks
-    links  = Hash.new {|h,k| h[k] = { 'src'   => [], 'dst'   => [] } }
+    links  = Hash.new {|h,k| h[k] = { 'src' => [], 'dst' => [] } }
     stacks = Hash.new {|h,k| h[k] = Hash.new {|_h,_k| _h[_k] = [] } }
 
     cfn_stack_descriptions.each do |stack|
