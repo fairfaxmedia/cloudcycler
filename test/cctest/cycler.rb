@@ -11,4 +11,8 @@ class MockCycler
 
     @bucket_region = 'dummy-1'
   end
+
+  def aws_max_retries
+    5
+  end
 end

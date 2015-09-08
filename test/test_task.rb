@@ -8,17 +8,17 @@ class TestTasks < Minitest::Test
       'test-2-staging', 'test-2-uat', 'test-2-prod',
       'test-3-staging', 'test-3-uat', 'test-3-prod',
     ]
-    @test_instances = {
-      'stage011' => 'i-deadbeef',
-      'stage021' => 'i-deadbeef',
-      'stage031' => 'i-deadbeef',
-      'uat011'   => 'i-deadbeef',
-      'uat021'   => 'i-deadbeef',
-      'uat031'   => 'i-deadbeef',
-      'prod011'  => 'i-deadbeef',
-      'prod021'  => 'i-deadbeef',
-      'prod031'  => 'i-deadbeef',
-    }
+    @test_instances = [
+      'i-00000011',
+      'i-00000012',
+      'i-00000013',
+      'i-00000021',
+      'i-00000022',
+      'i-00000023',
+      'i-00000031',
+      'i-00000032',
+      'i-00000033',
+    ]
   end
 
   def include_strings(type)
@@ -28,9 +28,9 @@ class TestTasks < Minitest::Test
       @task.include(:cfn, 'test-2-staging')
       @task.include(:cfn, 'test-3-staging')
     when :ec2
-      @task.include(:ec2, 'stage011')
-      @task.include(:ec2, 'stage021')
-      @task.include(:ec2, 'stage031')
+      @task.include(:ec2, 'i-00000011')
+      @task.include(:ec2, 'i-00000021')
+      @task.include(:ec2, 'i-00000031')
     end
   end
 
@@ -39,7 +39,7 @@ class TestTasks < Minitest::Test
     when :cfn
       @task.include(:cfn, /test-\d-staging/)
     when :ec2
-      @task.include(:ec2, /stage0\d\d/)
+      @task.include(:ec2, /i-000000\d\d/)
     end
   end
 
@@ -48,7 +48,7 @@ class TestTasks < Minitest::Test
     when :cfn
       @task.exclude(:cfn, 'test-2-staging')
     when :ec2
-      @task.exclude(:ec2, 'stage021')
+      @task.exclude(:ec2, 'i-00000021')
     end
   end
 
@@ -57,7 +57,7 @@ class TestTasks < Minitest::Test
     when :cfn
       @task.exclude(:cfn, /^test-2/)
     when :ec2
-      @task.exclude(:ec2, /021$/)
+      @task.exclude(:ec2, /21$/)
     end
   end
 
@@ -68,9 +68,9 @@ class TestTasks < Minitest::Test
       assert_includes(@task.includes[:cfn], 'test-2-staging')
       assert_includes(@task.includes[:cfn], 'test-3-staging')
     when :ec2
-      assert_includes(@task.includes[:ec2], 'stage011')
-      assert_includes(@task.includes[:ec2], 'stage021')
-      assert_includes(@task.includes[:ec2], 'stage031')
+      assert_includes(@task.includes[:ec2], 'i-00000011')
+      assert_includes(@task.includes[:ec2], 'i-00000021')
+      assert_includes(@task.includes[:ec2], 'i-00000031')
     end
   end
 
@@ -81,9 +81,9 @@ class TestTasks < Minitest::Test
       refute_includes(@task.includes[:cfn], 'test-2-staging')
       assert_includes(@task.includes[:cfn], 'test-3-staging')
     when :ec2
-      assert_includes(@task.includes[:ec2], 'stage011')
-      refute_includes(@task.includes[:ec2], 'stage021')
-      assert_includes(@task.includes[:ec2], 'stage031')
+      assert_includes(@task.includes[:ec2], 'i-00000011')
+      refute_includes(@task.includes[:ec2], 'i-00000021')
+      assert_includes(@task.includes[:ec2], 'i-00000031')
     end
   end
 
@@ -92,7 +92,7 @@ class TestTasks < Minitest::Test
     when :cfn
       assert @task.excluded?(:cfn, 'test-2-staging')
     when :ec2
-      assert @task.excluded?(:ec2, 'stage021')
+      assert @task.excluded?(:ec2, 'i-00000021')
     end
   end
 

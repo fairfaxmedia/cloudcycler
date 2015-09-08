@@ -4,12 +4,14 @@ MockCFOutput   = Struct.new(:key, :value)
 class MockStack
   attr_accessor :stack_name
   attr_accessor :exists
+  attr_accessor :status
 
   attr_reader :delete_called
 
   def initialize(stack_name)
     @stack_name = stack_name
     @exists     = true
+    @status     = 'CREATE_COMPLETE'
   end
 
   def delete
