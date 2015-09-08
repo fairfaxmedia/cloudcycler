@@ -118,7 +118,7 @@ class Cloud::Cycler::Task
         end
 
         if item_excluded
-          debug { "#{type}:#{id} exluded - skipping" }
+          debug { "#{type}:#{id} excluded - skipping" }
           next
         elsif item_disabled
           debug { "#{type}:#{id} disabled - skipping" }
