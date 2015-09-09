@@ -3,9 +3,12 @@ require 'cloud/cycler/namespace'
 
 # Wrapper around AWS::AutoScaling.
 class Cloud::Cycler::ASGroup
+  attr_accessor :grace_period
+
   def initialize(task, name)
-    @task = task
-    @name = name
+    @task         = task
+    @name         = name
+    @grace_period = 30
   end
 
   # Restart any stopped instances, and resume autoscaling processes.
@@ -99,7 +102,7 @@ class Cloud::Cycler::ASGroup
     # they are healthy (or a timeout is reached). With the current task model,
     # other actions are blocked while this is waiting, so I can't afford to
     # wait too long.
-    sleep 30 if started > 0
+    sleep(@grace_period) if started > 0
   end
 
   private
