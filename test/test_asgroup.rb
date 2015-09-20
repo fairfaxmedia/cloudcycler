@@ -76,6 +76,50 @@ class MockAutoScalingGroup
   def resume_all_processes
     @suspended_processes = []
   end
+
+  def load_balancers
+    if @load_balancer.nil?
+      @load_balancer = MockLoadBalancer.new
+      @load_balancer.registered = auto_scaling_instances.map(&:instance_id)
+    end
+    [@load_balancer]
+  end
+end
+
+class MockLoadBalancer
+  attr_accessor :registered
+  attr_accessor :deregistered
+
+  def initialize
+    @registered   = []
+    @deregistered = []
+  end
+
+  def instances
+    MockLoadBalancerInstancesCollection.new(self)
+  end
+
+  def register(instance_id)
+    @registered << instance_id
+  end
+
+  def deregister(instance_id)
+    @deregistered << instance_id
+  end
+end
+
+class MockLoadBalancerInstancesCollection
+  def initialize(lb)
+    @lb = lb
+  end
+
+  def register(instance_id)
+    @lb.registered << instance_id
+  end
+
+  def deregister(instance_id)
+    @lb.deregistered << instance_id
+  end
 end
 
 class TestASGroup < Minitest::Test
