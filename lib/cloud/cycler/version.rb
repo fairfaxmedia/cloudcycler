@@ -2,5 +2,5 @@ require 'cloud/cycler/namespace'
 
 # Just contains the version for gemspec, etc to pull in
 class Cloud::Cycler
-  VERSION = '2.1.14'
+  VERSION = '2.1.15'
 end
