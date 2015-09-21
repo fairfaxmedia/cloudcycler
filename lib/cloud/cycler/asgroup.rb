@@ -58,6 +58,9 @@ class Cloud::Cycler::ASGroup
   def terminate_instances
     autoscaling_instances.each do |instance|
       @task.unsafe("Terminating instance #{instance.instance_id}") do
+        load_balancers.each do |elb|
+          elb.instances.deregister(instance.instance_id)
+        end
         instance.ec2_instance.terminate
       end
     end

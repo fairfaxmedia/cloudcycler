@@ -131,12 +131,23 @@ class TestASGroup < Minitest::Test
 
     group.stub(:aws_autoscaling, aws_autoscaling) do
       mock_group = aws_autoscaling.groups['as-12345']
+      mock_group.load_balancers.each do |elb|
+        elb.registered = []
+      end
 
       group.stub(:autoscaling_group, mock_group) do
         group.start
         assert(
           mock_group.auto_scaling_instances.none? {|x| x.start_called },
           'Autoscaling instances started'
+        )
+        assert(
+          mock_group.auto_scaling_instances.all? do |inst|
+            mock_group.load_balancers.none? do |elb|
+              elb.registered.include?(inst.instance_id)
+            end
+          end,
+          'Autoscaling instances registered to ELB'
         )
       end
     end
@@ -155,6 +166,14 @@ class TestASGroup < Minitest::Test
       group.stub(:autoscaling_group, mock_group) do
         group.stop(:stop)
         assert(mock_group.auto_scaling_instances.none? {|x| x.stop_called })
+        assert(
+          mock_group.auto_scaling_instances.all? do |inst|
+            mock_group.load_balancers.all? do |elb|
+              elb.registered.include?(inst.instance_id)
+            end
+          end,
+          'Autoscaling instances not registered to ELB'
+        )
       end
     end
   end
@@ -172,6 +191,14 @@ class TestASGroup < Minitest::Test
       group.stub(:autoscaling_group, mock_group) do
         group.stop(:terminate)
         assert(mock_group.auto_scaling_instances.none? {|x| x.terminate_called })
+        assert(
+          mock_group.auto_scaling_instances.all? do |inst|
+            mock_group.load_balancers.all? do |elb|
+              elb.registered.include?(inst.instance_id)
+            end
+          end,
+          'Autoscaling instances not registered to ELB'
+        )
       end
     end
   end
@@ -195,6 +222,14 @@ class TestASGroup < Minitest::Test
           mock_group.auto_scaling_instances.all? {|x| x.start_called },
           'Autoscaling instances not started'
         )
+        assert(
+          mock_group.auto_scaling_instances.all? do |inst|
+            mock_group.load_balancers.all? do |elb|
+              elb.registered.include?(inst.instance_id)
+            end
+          end,
+          'Autoscaling instances not registered to ELB'
+        )
       end
     end
   end
@@ -213,6 +248,14 @@ class TestASGroup < Minitest::Test
         assert(
           mock_group.suspended_processes.empty?,
           'Autoscaling group processes not resumed'
+        )
+        assert(
+          mock_group.auto_scaling_instances.all? do |inst|
+            mock_group.load_balancers.all? do |elb|
+              elb.registered.include?(inst.instance_id)
+            end
+          end,
+          'Autoscaling instances not registered to ELB'
         )
       end
     end
@@ -234,6 +277,14 @@ class TestASGroup < Minitest::Test
           mock_group.auto_scaling_instances.all? {|x| x.stop_called },
           'Autoscaling instances not stopped'
         )
+        assert(
+          mock_group.auto_scaling_instances.all? do |inst|
+            mock_group.load_balancers.all? do |elb|
+              elb.deregistered.include?(inst.instance_id)
+            end
+          end,
+          'Autoscaling instances not deregistered from ELB'
+        )
       end
     end
   end
@@ -253,6 +304,14 @@ class TestASGroup < Minitest::Test
         assert(
           mock_group.auto_scaling_instances.all? {|x| x.terminate_called },
           'Autoscaling instances not terminated'
+        )
+        assert(
+          mock_group.auto_scaling_instances.all? do |inst|
+            mock_group.load_balancers.all? do |elb|
+              elb.deregistered.include?(inst.instance_id)
+            end
+          end,
+          'Autoscaling instances not deregistered from ELB'
         )
       end
     end
