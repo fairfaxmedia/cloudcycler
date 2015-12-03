@@ -38,9 +38,6 @@ class Cloud::Cycler::ASGroup
     end
 
     if autoscaling_group.suspended_processes.empty?
-      @task.unsafe("Stopping #{@name} processes") do
-        autoscaling_group.suspend_all_processes
-      end
       case action
       when :default, :terminate
         terminate_instances
@@ -56,6 +53,9 @@ class Cloud::Cycler::ASGroup
 
   # Terminate all the EC2 instances under the autoscaling group.
   def terminate_instances
+    @task.unsafe("Stopping #{@name} Launch process") do
+      autoscaling_group.suspend_all_processes
+    end
     autoscaling_instances.each do |instance|
       @task.unsafe("Terminating instance #{instance.instance_id}") do
         load_balancers.each do |elb|
@@ -71,6 +71,9 @@ class Cloud::Cycler::ASGroup
   # However, systems like CQ require manual intervention to add/remove
   # instances.
   def stop_instances
+    @task.unsafe("Stopping #{@name} processes") do
+      autoscaling_group.suspend_all_processes
+    end
     autoscaling_instances.each do |instance|
       @task.unsafe("Stopping instance #{instance.instance_id}") do
         load_balancers.each do |elb|
