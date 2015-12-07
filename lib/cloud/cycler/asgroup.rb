@@ -54,7 +54,7 @@ class Cloud::Cycler::ASGroup
   # Terminate all the EC2 instances under the autoscaling group.
   def terminate_instances
     @task.unsafe("Stopping #{@name} Launch process") do
-      autoscaling_group.suspend_all_processes
+      autoscaling_group.suspend_processes('Launch')
     end
     autoscaling_instances.each do |instance|
       @task.unsafe("Terminating instance #{instance.instance_id}") do
