@@ -99,7 +99,12 @@ class Cloud::Cycler::Task
   # Process each of the included resources. Looks for settings in dynamodb
   # which overwrite the task settings.
   def run
-    info { "Starting task: #{@name}" }
+    if @schedule.interesting?
+      info { "Starting task: #{@name}" }
+    else
+      info { "Skipping task: #{@name}" }
+      return
+    end
     @includes.each do |type, ids|
       klass = TYPES[type]
       raise Cloud::Cycler::TaskFailure.new("Unknown type #{type}") if klass.nil?

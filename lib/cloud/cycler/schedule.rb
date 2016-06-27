@@ -69,8 +69,8 @@ class Cloud::Cycler::Schedule
     sprintf("#{sched} %02d%02d-%02d%02d", @start_hr, @start_min, @stop_hr, @stop_min)
   end
 
-  # Returns true if the current time is within the hours defined by the schedule
-  def active?
+  # Returns the start and stop times for *today's* operational window
+  def window
     now = Time.now
     today = now.to_date
 
@@ -85,6 +85,21 @@ class Cloud::Cycler::Schedule
       stop += 86400
     end
 
+    [ start, now, stop ]
+  end
+
+  # Returns true if the current time is within the hours defined by the schedule
+  def active?
+    start, now, stop = window
+
     now.between?(start, stop)
+  end
+
+  # Returns true if the current time is within an hour of the start or stop
+  # time in the schedule
+  def interesting?
+    start, now, stop = window
+
+    now.between?(start,start+3600) || now.between?(stop,stop+3600)
   end
 end
