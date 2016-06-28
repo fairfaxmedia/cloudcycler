@@ -70,7 +70,7 @@ class MockAutoScalingGroup
   end
 
   def suspend_processes(to_suspend)
-    @suspended_processes = (@suspended_processes + [to_suspend].flatten).uniq
+    @suspended_processes = (@suspended_processes + [to_suspend]).uniq
   end
 
   def suspend_all_processes
