@@ -109,7 +109,7 @@ The `cloudcycler` utility can read configuration from a YAML file.
 * `bucket-prefix` - prefix (folder) for S3 objects
 * `bucket-region` - region for S3 bucket
 * `task-file` - task file
-* `take-directory` - task directory
+* `take-dir` - task directory - task files named *.task will be included.
 
 ### Schedule syntax
 
