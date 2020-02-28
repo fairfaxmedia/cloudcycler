@@ -18,7 +18,7 @@ GEM
     mini_portile2 (2.4.0)
     nokogiri (1.10.8)
       mini_portile2 (~> 2.4.0)
-    rake (10.4.0)
+    rake (13.0.1)
     trollop (2.0)
 
 PLATFORMS
@@ -27,4 +27,4 @@ PLATFORMS
 DEPENDENCIES
   bundler (~> 1.7)
   cloudcycler!
-  rake (~> 10.0)
+  rake (~> 13.0)
