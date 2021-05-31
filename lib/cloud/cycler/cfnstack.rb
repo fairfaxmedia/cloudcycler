@@ -141,7 +141,11 @@ class Cloud::Cycler::CFNStack
     end
 
     @task.unsafe("Building stack #{@name}") do
-      cf_stacks.create(@name, template, :parameters => params)
+      tags = [ {
+        key: "Creator",
+        value: "Cloudcycler"
+      } ]
+      cf_stacks.create(@name, template, :parameters => params, :tags = tags)
     end
   rescue AWS::S3::Errors::NoSuchKey
     @task.warn { "Cannot rebuild #{@name} - No details in S3" }
